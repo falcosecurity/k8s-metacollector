@@ -155,3 +155,42 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+# Install gci if not available
+gci:
+ifeq (, $(shell which gci))
+	@go install github.com/daixiang0/gci@v0.9.0
+GCI=$(GOBIN)/gci
+else
+GCI=$(shell which gci)
+endif
+
+# Install addlicense if not available
+addlicense:
+ifeq (, $(shell which addlicense))
+	@go install github.com/google/addlicense@v1.0.0
+ADDLICENSE=$(GOBIN)/addlicense
+else
+ADDLICENSE=$(shell which addlicense)
+endif
+
+# Run go fmt against code and add the licence header
+fmt: gci addlicense
+	go mod tidy
+	go fmt ./...
+	find . -type f -name '*.go' -a -exec $(GCI) write -s standard -s default -s "prefix(github.com/alacuku/k8s-metadata)" {} \;
+	find . -type f -name '*.go' -exec $(ADDLICENSE) -l apache -c "The Falco Authors" -y "$(shell date +%Y)" {} \;
+
+# Install golangci-lint if not available
+golangci-lint:
+ifeq (, $(shell which golangci-lint))
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
+GOLANGCILINT=$(GOBIN)/golangci-lint
+else
+GOLANGCILINT=$(shell which golangci-lint)
+endif
+
+# It works when called in a branch different than main.
+# "--new-from-rev REV Show only new issues created after git revision REV"
+lint: golangci-lint
+	$(GOLANGCILINT) run --new-from-rev main
