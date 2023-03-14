@@ -69,7 +69,15 @@ spec:
       - command:
         - /manager
         args:
-        - --leader-elect
+          - --node-name
+          - "$(NODE_NAME)"
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        ports:
+          - containerPort: 8080
         image: controller:latest
         name: manager
         securityContext:

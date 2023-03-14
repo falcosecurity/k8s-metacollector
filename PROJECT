@@ -5,6 +5,8 @@
 domain: github.com
 layout:
 - go.kubebuilder.io/v3
+plugins:
+  grafana.kubebuilder.io/v1-alpha: {}
 projectName: k8s-metadata
 repo: github.com/alacuku/k8s-metadata
 resources:

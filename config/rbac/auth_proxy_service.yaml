@@ -13,9 +13,8 @@ metadata:
   namespace: system
 spec:
   ports:
-  - name: https
-    port: 8443
+  - name: metrics
+    port: 8080
     protocol: TCP
-    targetPort: https
   selector:
     control-plane: controller-manager
