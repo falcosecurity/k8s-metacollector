@@ -17,20 +17,23 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"os"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/alacuku/k8s-metadata/controllers"
+	"github.com/alacuku/k8s-metadata/collectors"
+	"github.com/alacuku/k8s-metadata/internal/events"
 )
 
 var (
@@ -46,48 +49,76 @@ func init() {
 
 func main() {
 	var metricsAddr string
-	var enableLeaderElection bool
 	var probeAddr string
+	var nodeName string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&nodeName, "node-name", "",
+		"The node name where this controller instance runs. It is used to filter out pods not scheduled on the current node.")
+
 	opts := zap.Options{
-		Development: true,
+		Development: false,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// Check node name has been set.
+	if nodeName == "" {
+		setupLog.Error(fmt.Errorf("can not be empty"), "please set a value for", "flag", "--node-name")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "22e1263d.github.com",
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			UnsafeDisableDeepCopyByObject: map[client.Object]bool{
+				&corev1.Pod{}:       true,
+				&corev1.Namespace{}: true,
+			},
+		}),
 	})
+
+	if err != nil {
+		setupLog.Error(err, "creating manager")
+		os.Exit(1)
+	}
+
+	mgr.GetCache().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(o client.Object) []string {
+		pod, ok := o.(*corev1.Pod)
+		if !ok {
+			return []string{}
+		}
+		if pod.Spec.NodeName != "" {
+			return []string{pod.Spec.NodeName}
+		}
+		return []string{}
+	})
+
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+	podEvents := make(chan events.Event, 1)
+	cm := collectors.NewChannelMetrics()
+	go func() {
+		for msg := range podEvents {
+			cm.Receive(msg)
+			fmt.Println(msg.String())
+		}
+	}()
 
-	if err = (&controllers.PodReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+	if err = (&collectors.PodCollector{
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		Pods:           make(map[string]*events.Pod),
+		Name:           "pod-collector",
+		Sink:           podEvents,
+		ChannelMetrics: cm,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)
