@@ -45,6 +45,10 @@ func (g *Generic) Nodes() fields.Nodes {
 	return g.nodes
 }
 
+func (g *Generic) String() string {
+	return fmt.Sprintf("name %q, namespace %q, nodes %q", g.Name(), g.Namespace(), g.nodes)
+}
+
 // Pod event for pod resources.
 type Pod struct {
 	Generic

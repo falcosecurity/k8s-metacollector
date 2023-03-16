@@ -45,7 +45,6 @@ type PodCollector struct {
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
-//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 //+kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -66,7 +65,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	logReq = logReq.WithValues("node", pod.Spec.NodeName)
 
-	if k8sApiErrors.IsNotFound(err) || !pod.ObjectMeta.DeletionTimestamp.IsZero() {
+	if k8sApiErrors.IsNotFound(err) {
 		// Remove the data related to this resource.
 		if event, ok = pc.Pods[req.String()]; ok {
 			logReq.Info("removing resource from cache")
@@ -129,6 +128,13 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		pc.Sink <- event
 	}
 
+	// If the pod has been marked to be deleted than we requeue it.
+	// If during the next reconcile it is not found in the cache, then we delete it.
+	if !pod.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The default terminationGracePeriodSeconds is 30 seconds, so we requeue it after 30 seconds.
+		return ctrl.Result{RequeueAfter: 30}, nil
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -171,7 +177,6 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 		logger.Error(err, "unable to get services list", "in namespace", pod.Namespace)
 		return false, err
 	}
-
 	svcRefs := []types.UID{}
 	for i := range services.Items {
 		sel := labels.SelectorFromValidatedSet(services.Items[i].Spec.Selector)

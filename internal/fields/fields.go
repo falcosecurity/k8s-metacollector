@@ -71,4 +71,4 @@ func (m *Metadata) UpdateLabels(l map[string]string) bool {
 type References map[string][]types.UID
 
 // Nodes custom type for nodes to which a given event need to be sent.
-type Nodes []string
+type Nodes map[string]struct{}
