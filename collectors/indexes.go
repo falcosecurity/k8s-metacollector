@@ -28,6 +28,7 @@ const (
 	podPrefixName = "metadata.generateName"
 )
 
+// IndexPodByNode adds an indexer for bots base on the NodeName where it has been scheduled.
 func IndexPodByNode(ctx context.Context, fi client.FieldIndexer) error {
 	return fi.IndexField(ctx, &corev1.Pod{}, nodeNameIndex, podByNode)
 }
@@ -43,6 +44,7 @@ func podByNode(o client.Object) []string {
 	return []string{}
 }
 
+// IndexPodByPrefixName adds an indexer for pods based on the pods prefix name.
 func IndexPodByPrefixName(ctx context.Context, fi client.FieldIndexer) error {
 	return fi.IndexField(ctx, &corev1.Pod{}, podPrefixName, podByPrefixName)
 }

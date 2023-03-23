@@ -17,12 +17,17 @@ package collectors
 import (
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-var newPartialDeployment = partialDeployment()
+var newPartialDeployment = partialDeployment(nil)
 
-func partialDeployment() *metav1.PartialObjectMetadata {
+func partialDeployment(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
 	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind("Deployment"))
+	if name != nil {
+		obj.Name = name.Name
+		obj.Namespace = name.Namespace
+	}
 	return obj
 }

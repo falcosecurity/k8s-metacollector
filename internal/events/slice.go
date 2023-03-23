@@ -14,7 +14,8 @@
 
 package events
 
-func contains[T comparable](elems []T, v T) bool {
+// Contains checks if a given slice contains a given element.
+func Contains[T comparable](elems []T, v T) bool {
 	for _, s := range elems {
 		if v == s {
 			return true

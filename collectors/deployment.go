@@ -26,101 +26,112 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/alacuku/k8s-metadata/internal/events"
+	"github.com/alacuku/k8s-metadata/internal/fields"
 )
 
-// DeploymentCollector collects deployment's metadata.
+// DeploymentCollector collects deployments' metadata, puts them in a local cache and generates appropriated
+// events when such resources change over time.
 type DeploymentCollector struct {
 	client.Client
 	Sink           chan<- events.Event
 	ChannelMetrics *ChannelMetrics
-	Deployments    map[string]*events.Generic
+	Cache          events.GenericCache
+	GenericSource  source.Source
 	Name           string
 }
 
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 
+// Reconcile generates events to be sent to nodes when changes are detected for the watched resources.
 func (r *DeploymentCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
 	var dpl = newPartialDeployment
-	var event *events.Generic
-	var ok, created, updated bool
+	var dRes *events.GenericResource
+	var ok, deploymentDeleted, updated bool
 
-	logReq := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	err = r.Get(ctx, req.NamespacedName, dpl)
 	if err != nil && !k8sApiErrors.IsNotFound(err) {
-		logReq.Error(err, "unable to get resource")
+		logger.Error(err, "unable to get resource")
 		return ctrl.Result{}, err
 	}
 
-	if k8sApiErrors.IsNotFound(err) || !dpl.ObjectMeta.DeletionTimestamp.IsZero() {
-		// Remove the data related to this resource.
-		if _, ok := r.Deployments[req.String()]; ok {
-			logReq.Info("removing resource from cache")
-			eventTotal.WithLabelValues(r.Name, labelDeleted).Inc()
+	if k8sApiErrors.IsNotFound(err) {
+		// When the k8s resource get deleted we need to remove it from the local cache.
+		if _, ok = r.Cache.Get(req.String()); ok {
+			logger.Info("marking resource for deletion")
+			deploymentDeleted = true
+		} else {
+			return ctrl.Result{}, nil
 		}
-		delete(r.Deployments, req.String())
-		// Delete over GRPC or just set it as deleted and send the delete
-		// operation in batch.
-		return ctrl.Result{}, nil
 	}
 
-	logReq.V(3).Info("resource found")
+	logger.V(5).Info("resource found")
 
-	// Check if encountered the same resource before.
-	if event, ok = r.Deployments[req.String()]; !ok {
-		// If first time, then we just create a new event for it.
-		logReq.V(3).Info("never met this resource in my life")
-		event = new(events.Generic)
-		event.SetMetadata(&dpl.ObjectMeta)
-	} else if event.UpdateLabels(dpl.Labels) && !created {
-		updated = true
-	}
-
-	currentNodes, err := r.Nodes(ctx, logReq, &dpl.ObjectMeta)
+	// Get all the nodes to which this resource is related.
+	// The currentNodes are used to compute to which nodes we need to send an event
+	// and of which type, Added, Deleted or Modified.
+	currentNodes, err := r.Nodes(ctx, logger, &dpl.ObjectMeta)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	a, m, d, n := eventsPerNode(event, currentNodes, updated)
-
-	if len(a) != 0 {
-		event.SetNodes(a)
-		event.EventType = "Added"
-		logReq.V(3).Info("metadata fields added for resource", "nodes", a)
-		r.ChannelMetrics.Send(event)
-		r.Sink <- event
+	// Check if the resource has already been cached.
+	if dRes, ok = r.Cache.Get(req.String()); !ok {
+		// If first time, then we just create a new cache entry for it.
+		logger.V(3).Info("never met this resource in my life")
+		dRes = events.NewGenericResourceFromMetadata(&dpl.ObjectMeta, "Deployment")
+	} else if !deploymentDeleted {
+		// When the resource has already been cached, check if the mutable fields have changed.
+		updated = dRes.UpdateLabels(dpl.Labels)
 	}
 
-	if len(m) != 0 {
-		event.SetNodes(m)
-		event.EventType = "Modified"
-		logReq.V(3).Info("metadata fields modified for resource", "nodes", m)
-		r.ChannelMetrics.Send(event)
-		r.Sink <- event
+	// The resource has been created, or updated. Compute if we need to propagate events.
+	// The outcome is saved internally to the resource. See AddNodes method for more info.
+	if !deploymentDeleted {
+		// We need to know if the mutable fields has been changed. That's why AddNodes accepts
+		// a bool. Otherwise, we can not tell if nodes need an "Added" event or a "Modified" one.
+		dRes.AddNodes(currentNodes.ToSlice(), updated)
+	} else {
+		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
+		dRes.DeleteNodes(dRes.Nodes.ToSlice())
 	}
 
-	if len(d) != 0 {
-		event.SetNodes(d)
-		event.EventType = "Deleted"
-		logReq.V(3).Info("metadata fields deleted for resource", "nodes", d)
-		r.ChannelMetrics.Send(event)
-		r.Sink <- event
-	}
+	// At this point our resource has all the necessary bits to know for each node which type of events need to be sent.
+	evts := dRes.ToEvents()
 
-	if created || updated {
-		if created {
+	// Enqueue events.
+	for _, evt := range evts {
+		if evt == nil {
+			continue
+		}
+		switch evt.Type() {
+		case events.Added:
+			// Perform actions for "Added" events.
 			eventTotal.WithLabelValues(r.Name, labelAdded).Inc()
-		}
-		if updated {
+			// For each resource that generates an "Added" event, we need to add it to the cache.
+			// Please keep in mind that Cache operations resets the state of the resource, such as
+			// resetting the info needed to generate the events.
+			r.Cache.Add(req.String(), dRes)
+		case events.Modified:
+			// Run specific code for "Modified" events.
 			eventTotal.WithLabelValues(r.Name, labelUpdated).Inc()
+			r.Cache.Update(req.String(), dRes)
+		case events.Deleted:
+			// Run specific code for "Deleted" events.
+			eventTotal.WithLabelValues(r.Name, labelDeleted).Inc()
+			r.Cache.Delete(req.String())
 		}
+		// Add event to the queue.
+		r.ChannelMetrics.Send(evt)
+		r.Sink <- evt
 	}
-	event.SetNodes(n)
-	r.Deployments[req.String()] = event
 
 	return ctrl.Result{}, nil
 }
@@ -131,7 +142,8 @@ func (r *DeploymentCollector) initMetrics() {
 	eventTotal.WithLabelValues(r.Name, labelDeleted).Add(0)
 }
 
-func (r *DeploymentCollector) Nodes(ctx context.Context, logger logr.Logger, meta *metav1.ObjectMeta) (map[string]struct{}, error) {
+// Nodes returns all the nodes where pods related to the current deployment are running.
+func (r *DeploymentCollector) Nodes(ctx context.Context, logger logr.Logger, meta *metav1.ObjectMeta) (fields.Nodes, error) {
 	pods := corev1.PodList{}
 	err := r.List(ctx, &pods, client.InNamespace(meta.Namespace), client.MatchingFields{
 		podPrefixName: meta.Name,
@@ -168,5 +180,6 @@ func (r *DeploymentCollector) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Deployment{}, builder.OnlyMetadata).
 		WithOptions(controller.Options{LogConstructor: lc}).
+		Watches(r.GenericSource, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }

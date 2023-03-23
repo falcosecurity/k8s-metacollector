@@ -15,84 +15,221 @@
 package events
 
 import (
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/alacuku/k8s-metadata/internal/fields"
 )
 
-// Generic event that holds metadata fields for k8s resources.
-type Generic struct {
-	EventType string
-	fields.Metadata
-	nodes fields.Nodes
+// GenericResource event that holds metadata fields for k8s resources.
+type GenericResource struct {
+	Metadata    fields.Metadata
+	Nodes       fields.Nodes
+	AddedFor    []string
+	ModifiedFor []string
+	DeletedFor  []string
+}
+
+// NewGenericResourceFromMetadata creates a new GenericResource containing the given metadata of the given kind.
+func NewGenericResourceFromMetadata(meta *metav1.ObjectMeta, kind string) *GenericResource {
+	gr := new(GenericResource)
+	gr.Nodes = make(fields.Nodes)
+	gr.SetMetadata(meta, kind)
+	return gr
+}
+
+// SetCreatedFor sets the nodes for which this resource needs to generate an "Added" event.
+func (g *GenericResource) SetCreatedFor(nodes []string) {
+	g.AddedFor = nodes
+}
+
+// SetModifiedFor sets the nodes for which this resource needs to generate a "Modified" event.
+func (g *GenericResource) SetModifiedFor(nodes []string) {
+	g.ModifiedFor = nodes
+}
+
+// SetDeletedFor sets the nodes for which this resource need to generate a "Deleted" event.
+func (g *GenericResource) SetDeletedFor(nodes []string) {
+	g.DeletedFor = nodes
+}
+
+// AddNodes populates the nodes to which the events need to be sent, starting from the given nodes and the provided flag.
+// The starting point is the cached nodes to which we already know that we have sent at least an "Added" event. From the
+// cached nodes and the passed ones it generates the nodes to which we need to send an event and saves them in the appropriate
+// field, i.e. GenericResource.AddedFor, GenericResource.ModifiedFor and GenericResource.DeletedFor. Note that the updated
+// flag is set to true if the mutable fields for the resource has been updated. At the same time the GenericResource.Nodes field is updated
+// based on the new added or deleted nodes.
+func (g *GenericResource) AddNodes(nodes []string, updated bool) {
+	var added, modified, deleted []string
+	tmpNodes := make(fields.Nodes, len(nodes))
+
+	for _, n := range nodes {
+		tmpNodes[n] = struct{}{}
+		if _, ok := g.Nodes[n]; !ok {
+			g.Nodes[n] = struct{}{}
+			added = append(added, n)
+		} else if updated {
+			modified = append(modified, n)
+		}
+	}
+
+	for n := range g.Nodes {
+		if _, ok := tmpNodes[n]; !ok {
+			deleted = append(deleted, n)
+			delete(g.Nodes, n)
+		}
+	}
+
+	g.AddedFor = added
+	if updated {
+		g.ModifiedFor = modified
+	}
+	g.DeletedFor = deleted
+}
+
+// DeleteNodes populates the GenericResource.DeletedFor field with the passed nodes.
+// At the same time the GenericResource.Nodes field is updated based on the new added
+// or deleted nodes.
+func (g *GenericResource) DeleteNodes(nodes []string) {
+	var deleted []string
+
+	for _, n := range nodes {
+		if _, ok := g.Nodes[n]; ok {
+			deleted = append(deleted, n)
+			delete(g.Nodes, n)
+		}
+	}
+
+	g.DeletedFor = deleted
 }
 
 // SetMetadata populates the medata fields.
-func (g *Generic) SetMetadata(meta *metav1.ObjectMeta) {
-	g.Set(meta)
+func (g *GenericResource) SetMetadata(meta *metav1.ObjectMeta, kind string) {
+	g.Metadata.Set(meta, kind)
+}
+
+// UpdateLabels updates the labels fields.
+func (g *GenericResource) UpdateLabels(l map[string]string) bool {
+	return g.Metadata.UpdateLabels(l)
 }
 
 // SetNodes populates the nodes to which send the event.
-func (g *Generic) SetNodes(nodes fields.Nodes) {
-	g.nodes = nodes
+func (g *GenericResource) SetNodes(nodes fields.Nodes) {
+	g.Nodes = nodes
 }
 
-// Nodes returns the nodes.
-func (g *Generic) Nodes() fields.Nodes {
-	return g.nodes
+// ToEvents returns a slice containing Event based on the internal state of the GenericResource.
+func (g *GenericResource) ToEvents() []Event {
+	evts := make([]Event, 3)
+
+	if len(g.AddedFor) != 0 {
+		evts[0] = &GenericEvent{
+			Reason:           Added,
+			Metadata:         g.Metadata.DeepCopy(),
+			DestinationNodes: g.AddedFor,
+		}
+	}
+
+	if len(g.ModifiedFor) != 0 {
+		evts[1] = &GenericEvent{
+			Reason:           Modified,
+			Metadata:         g.Metadata.DeepCopy(),
+			DestinationNodes: g.ModifiedFor,
+		}
+	}
+
+	if len(g.DeletedFor) != 0 {
+		evts[2] = &GenericEvent{
+			Reason:           Deleted,
+			Metadata:         g.Metadata.DeepCopy(),
+			DestinationNodes: g.DeletedFor,
+		}
+	}
+
+	return evts
 }
 
-func (g *Generic) String() string {
-	return fmt.Sprintf("name %q, namespace %q, nodes %q", g.Name(), g.Namespace(), g.nodes)
+// NewPodResourceFromMetadata creates a new PodResource containing the given metadata.
+func NewPodResourceFromMetadata(meta *metav1.ObjectMeta) *PodResource {
+	return &PodResource{
+		GenericResource:    *NewGenericResourceFromMetadata(meta, "Pod"),
+		ResourceReferences: make(fields.References),
+	}
 }
 
-// Pod event for pod resources.
-type Pod struct {
-	Generic
-	refs fields.References
-}
-
-func (p *Pod) String() string {
-	return fmt.Sprintf("name %q, namespace %q, nodes %q", p.Name(), p.Namespace(), p.nodes)
+// PodResource event for pod resources.
+type PodResource struct {
+	GenericResource
+	ResourceReferences fields.References
 }
 
 // AddReferencesForKind adds references for a given kind in the pod event.
-func (p *Pod) AddReferencesForKind(kind string, refs []types.UID) bool {
-	if p.refs == nil {
-		p.refs = make(map[string][]types.UID)
+func (p *PodResource) AddReferencesForKind(kind string, refs []fields.Reference) bool {
+	if p.ResourceReferences == nil {
+		p.ResourceReferences = make(map[string][]fields.Reference)
 	}
 	refsLen := len(refs)
 	// If the passed refs have length 0 for the given resource kind, which is acceptable then we delete the current one.
 	if refsLen == 0 {
-		delete(p.refs, kind)
+		delete(p.ResourceReferences, kind)
 		return true
 	}
 
 	// Check if we already have references for the given resource kind.
-	oldRefs, ok := p.refs[kind]
+	oldRefs, ok := p.ResourceReferences[kind]
 	// If no refs found and the new refs are not empty then set them for the given resource kind.
 	if !ok && refsLen != 0 {
-		p.refs[kind] = refs
+		p.ResourceReferences[kind] = refs
 		return true
 	}
 
 	// If the number of old references is not equal to the number of new references,
 	// just delete the current ones and set the new ones.
 	if len(oldRefs) != refsLen {
-		p.refs[kind] = refs
+		p.ResourceReferences[kind] = refs
 		return true
 	}
 
 	// Determine if we need to update the refs.
 	for _, uid := range refs {
-		if !contains(oldRefs, uid) {
-			p.refs[kind] = refs
+		if !Contains(oldRefs, uid) {
+			p.ResourceReferences[kind] = refs
 			return true
 		}
 	}
 
 	return false
+}
+
+// ToEvents returns a slice containing Event based on the internal state of the PodResource.
+func (p *PodResource) ToEvents() []Event {
+	evts := make([]Event, 3)
+
+	if len(p.AddedFor) != 0 {
+		evts[0] = &GenericEvent{
+			Reason:           Added,
+			Metadata:         p.Metadata.DeepCopy(),
+			DestinationNodes: p.AddedFor,
+			References:       p.ResourceReferences.ToFlatMap(),
+		}
+	}
+
+	if len(p.ModifiedFor) != 0 {
+		evts[1] = &GenericEvent{
+			Reason:           Modified,
+			Metadata:         p.Metadata.DeepCopy(),
+			DestinationNodes: p.ModifiedFor,
+			References:       p.ResourceReferences.ToFlatMap(),
+		}
+	}
+
+	if len(p.DeletedFor) != 0 {
+		evts[2] = &GenericEvent{
+			Reason:           Deleted,
+			Metadata:         p.Metadata.DeepCopy(),
+			DestinationNodes: p.DeletedFor,
+			References:       p.ResourceReferences.ToFlatMap(),
+		}
+	}
+
+	return evts
 }

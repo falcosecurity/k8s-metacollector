@@ -14,12 +14,7 @@
 
 package collectors
 
-import (
-	"github.com/alacuku/k8s-metadata/internal/events"
-	"github.com/alacuku/k8s-metadata/internal/fields"
-)
-
-func eventsPerNode(evt events.Event, currentNodes fields.Nodes, updated bool) (added, modified, deleted, nodes fields.Nodes) {
+/*func eventsPerNode(evt events.Event, currentNodes fields.Nodes, updated bool) (added, modified, deleted, nodes fields.Nodes) {
 	oldNodes := evt.Nodes()
 
 	if len(currentNodes) == 0 {
@@ -60,4 +55,4 @@ func eventsPerNode(evt events.Event, currentNodes fields.Nodes, updated bool) (a
 	}
 
 	return
-}
+}*/
