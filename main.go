@@ -29,8 +29,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/alacuku/k8s-metadata/collectors"
 	"github.com/alacuku/k8s-metadata/internal/events"
@@ -87,42 +89,56 @@ func main() {
 		setupLog.Error(err, "creating manager")
 		os.Exit(1)
 	}
-
-	mgr.GetCache().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(o client.Object) []string {
-		pod, ok := o.(*corev1.Pod)
-		if !ok {
-			return []string{}
-		}
-		if pod.Spec.NodeName != "" {
-			return []string{pod.Spec.NodeName}
-		}
-		return []string{}
-	})
-
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+	if err = collectors.IndexPodByPrefixName(context.Background(), mgr.GetFieldIndexer()); err != nil {
+		setupLog.Error(err, "unable to add indexer by prefix name for pods")
 		os.Exit(1)
 	}
-	podEvents := make(chan events.Event, 1)
+
+	if err = collectors.IndexPodByNode(context.Background(), mgr.GetFieldIndexer()); err != nil {
+		setupLog.Error(err, "unable to add indexer by node name for pods")
+		os.Exit(1)
+	}
+
+	eventsChan := make(chan events.Event, 1)
 	cm := collectors.NewChannelMetrics()
 	go func() {
-		for msg := range podEvents {
+		for msg := range eventsChan {
 			cm.Receive(msg)
 			fmt.Println(msg.String())
 		}
 	}()
 
+	// Create source for deployments.
+	dpl := make(chan event.GenericEvent, 1)
+	deploymentSource := &source.Channel{Source: dpl}
+
+	externalSrc := make(map[string]chan<- event.GenericEvent)
+	externalSrc["Deployment"] = dpl
 	if err = (&collectors.PodCollector{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		Pods:           make(map[string]*events.Pod),
-		Name:           "pod-collector",
-		Sink:           podEvents,
-		ChannelMetrics: cm,
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		Cache:           events.NewPodCache(),
+		Name:            "pod-collector",
+		Sink:            eventsChan,
+		ChannelMetrics:  cm,
+		ExternalSources: externalSrc,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Pod")
+		setupLog.Error(err, "unable to create controller", "controller", "PodResource")
 		os.Exit(1)
 	}
+
+	if err = (&collectors.DeploymentCollector{
+		Client:         mgr.GetClient(),
+		Cache:          events.NewGenericCache(),
+		Name:           "deployment-collector",
+		Sink:           eventsChan,
+		ChannelMetrics: cm,
+		GenericSource:  deploymentSource,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Deployment")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
