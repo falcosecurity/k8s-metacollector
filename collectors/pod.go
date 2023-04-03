@@ -89,6 +89,9 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		// If first time, then we just create a new cache entry for it.
 		logReq.V(3).Info("never met this resource in my life")
 		pRes = events.NewPodResourceFromMetadata(&pod.ObjectMeta)
+		if _, err = pc.NamespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+			return ctrl.Result{}, err
+		}
 	} else if !podDeleted {
 		// When the resource has already been cached, check if the mutable fields have changed.
 		updated = pRes.UpdateLabels(pod.Labels)
@@ -132,6 +135,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			// Please keep in mind that Cache operations resets the state of the resource, such as
 			// resetting the info needed to generate the events.
 			pc.Cache.Add(req.String(), pRes)
+			pc.triggerOwnersOnCreateEvent(pRes)
 		case "Modified":
 			eventTotal.WithLabelValues(pc.Name, labelUpdated).Inc()
 			pc.Cache.Update(req.String(), pRes)
@@ -230,6 +234,30 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 	return false, nil
 }
 
+// NamespaceRefsHandler get the UID of the namespace of the given pod and update the related event.
+func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.PodResource, pod *corev1.Pod) (bool, error) {
+	if pod == nil {
+		return false, nil
+	}
+
+	// Get the pod's namespace.
+	namespace := corev1.Namespace{}
+	nsKey := types.NamespacedName{
+		Namespace: "",
+		Name:      pod.Namespace,
+	}
+	err := pc.Get(ctx, nsKey, &namespace)
+	if err != nil {
+		logger.Error(err, "unable to get", "namespace", pod.Namespace)
+		return false, err
+	}
+
+	return evt.AddReferencesForKind("Namespace", []fields.Reference{{
+		Name: nsKey,
+		UID:  namespace.UID,
+	}}), nil
+}
+
 func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.PodResource) {
 	for kind, refs := range evt.ResourceReferences {
 		ch, ok := pc.ExternalSources[kind]
@@ -245,9 +273,34 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.PodResource) {
 					obj = partialDeployment(&name)
 				case "ReplicaSet":
 					obj = partialReplicaset(&name)
+				case namespace:
+					obj = partialNamespace(&name)
 				}
-				time.Sleep(10 * time.Second)
-				ch <- event2.GenericEvent{Object: obj}
+				if obj != nil {
+					time.Sleep(10 * time.Second)
+					ch <- event2.GenericEvent{Object: obj}
+				}
+			}(ref.Name, kind)
+		}
+	}
+}
+
+func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.PodResource) {
+	for kind, refs := range evt.ResourceReferences {
+		ch, ok := pc.ExternalSources[kind]
+		if !ok {
+			continue
+		}
+
+		for _, ref := range refs {
+			go func(name types.NamespacedName, kind string) {
+				var obj client.Object
+				if kind == namespace {
+					obj = partialNamespace(&name)
+				}
+				if obj != nil {
+					ch <- event2.GenericEvent{Object: obj}
+				}
 			}(ref.Name, kind)
 		}
 	}
