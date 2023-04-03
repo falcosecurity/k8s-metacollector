@@ -16,5 +16,8 @@ package collectors
 
 const (
 	namespace = "Namespace"
+	// Daemonset kind as used by k8s resources.
 	Daemonset = "DaemonSet"
+	// Replicationcontroller kind as used by k8s resources.
+	Replicationcontroller = "ReplicationController"
 )
