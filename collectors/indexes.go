@@ -57,7 +57,7 @@ func podByPrefixName(o client.Object) []string {
 	if pod.GenerateName != "" {
 		// Handling case when the pod has been created by a Deployment.
 		if hash, ok := pod.Labels["pod-template-hash"]; ok {
-			return []string{strings.TrimSuffix(pod.GenerateName, fmt.Sprintf("-%s-", hash))}
+			return []string{strings.TrimSuffix(pod.GenerateName, fmt.Sprintf("-%s-", hash)), pod.GenerateName}
 		}
 		// Handle all other cases when pod has a generated name.
 		return []string{pod.GenerateName}
