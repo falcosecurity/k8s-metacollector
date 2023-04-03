@@ -21,10 +21,21 @@ import (
 )
 
 var newPartialDeployment = partialDeployment(nil)
+var newPartialReplicaset = partialReplicaset(nil)
 
 func partialDeployment(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
 	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind("Deployment"))
+	if name != nil {
+		obj.Name = name.Name
+		obj.Namespace = name.Namespace
+	}
+	return obj
+}
+
+func partialReplicaset(name *types.NamespacedName) *metav1.PartialObjectMetadata {
+	obj := &metav1.PartialObjectMetadata{}
+	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind("ReplicaSet"))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace

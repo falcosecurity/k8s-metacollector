@@ -112,8 +112,14 @@ func main() {
 	dpl := make(chan event.GenericEvent, 1)
 	deploymentSource := &source.Channel{Source: dpl}
 
+	// Create source for replicasets.
+	rs := make(chan event.GenericEvent, 1)
+	replicasetSource := &source.Channel{Source: rs}
+
 	externalSrc := make(map[string]chan<- event.GenericEvent)
 	externalSrc["Deployment"] = dpl
+	externalSrc["ReplicaSet"] = rs
+
 	if err = (&collectors.PodCollector{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
@@ -136,6 +142,18 @@ func main() {
 		GenericSource:  deploymentSource,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Deployment")
+		os.Exit(1)
+	}
+
+	if err = (&collectors.ReplicasetCollector{
+		Client:         mgr.GetClient(),
+		Cache:          events.NewGenericCache(),
+		Name:           "replicaset-collector",
+		Sink:           eventsChan,
+		ChannelMetrics: cm,
+		GenericSource:  replicasetSource,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ReplicaSet")
 		os.Exit(1)
 	}
 
