@@ -16,4 +16,5 @@ package collectors
 
 const (
 	namespace = "Namespace"
+	Daemonset = "DaemonSet"
 )

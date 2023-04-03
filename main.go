@@ -120,10 +120,15 @@ func main() {
 	ns := make(chan event.GenericEvent, 1)
 	namespaceSource := &source.Channel{Source: ns}
 
+	// Create source for daemonsets.
+	ds := make(chan event.GenericEvent, 1)
+	daemonsetSource := &source.Channel{Source: ds}
+
 	externalSrc := make(map[string]chan<- event.GenericEvent)
 	externalSrc["Deployment"] = dpl
 	externalSrc["ReplicaSet"] = rs
 	externalSrc["Namespace"] = ns
+	externalSrc[collectors.Daemonset] = ds
 
 	if err = (&collectors.PodCollector{
 		Client:          mgr.GetClient(),
@@ -173,6 +178,19 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
 	}
+
+	if err = (&collectors.DaemonsetCollector{
+		Client:         mgr.GetClient(),
+		Cache:          events.NewGenericCache(),
+		Name:           "daemonset-collector",
+		Sink:           eventsChan,
+		ChannelMetrics: cm,
+		GenericSource:  daemonsetSource,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Daemonset")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
