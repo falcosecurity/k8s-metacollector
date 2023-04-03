@@ -25,6 +25,7 @@ var newPartialDeployment = partialDeployment(nil)
 var newPartialReplicaset = partialReplicaset(nil)
 var newPartialNamespace = partialNamespace(nil)
 var newPartialDaemonset = partialDaemonsets(nil)
+var newPartialReplicationController = partialReplicationController(nil)
 
 func partialDeployment(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
@@ -59,6 +60,16 @@ func partialNamespace(name *types.NamespacedName) *metav1.PartialObjectMetadata 
 func partialDaemonsets(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
 	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind(Daemonset))
+	if name != nil {
+		obj.Name = name.Name
+		obj.Namespace = name.Namespace
+	}
+	return obj
+}
+
+func partialReplicationController(name *types.NamespacedName) *metav1.PartialObjectMetadata {
+	obj := &metav1.PartialObjectMetadata{}
+	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(Replicationcontroller))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace
