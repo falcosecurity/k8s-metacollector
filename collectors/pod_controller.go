@@ -238,11 +238,17 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.PodResource) {
 		}
 
 		for _, ref := range refs {
-			go func(name types.NamespacedName) {
-				dpl := partialDeployment(&name)
+			go func(name types.NamespacedName, kind string) {
+				var obj client.Object
+				switch kind {
+				case "Deployment":
+					obj = partialDeployment(&name)
+				case "ReplicaSet":
+					obj = partialReplicaset(&name)
+				}
 				time.Sleep(10 * time.Second)
-				ch <- event2.GenericEvent{Object: dpl}
-			}(ref.Name)
+				ch <- event2.GenericEvent{Object: obj}
+			}(ref.Name, kind)
 		}
 	}
 }
