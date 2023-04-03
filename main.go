@@ -116,9 +116,14 @@ func main() {
 	rs := make(chan event.GenericEvent, 1)
 	replicasetSource := &source.Channel{Source: rs}
 
+	// Create source for namespaces.
+	ns := make(chan event.GenericEvent, 1)
+	namespaceSource := &source.Channel{Source: ns}
+
 	externalSrc := make(map[string]chan<- event.GenericEvent)
 	externalSrc["Deployment"] = dpl
 	externalSrc["ReplicaSet"] = rs
+	externalSrc["Namespace"] = ns
 
 	if err = (&collectors.PodCollector{
 		Client:          mgr.GetClient(),
@@ -157,6 +162,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&collectors.NamespaceCollector{
+		Client:         mgr.GetClient(),
+		Cache:          events.NewGenericCache(),
+		Name:           "namespace-collector",
+		Sink:           eventsChan,
+		ChannelMetrics: cm,
+		GenericSource:  namespaceSource,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

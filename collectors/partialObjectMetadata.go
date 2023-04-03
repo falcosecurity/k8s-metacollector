@@ -16,12 +16,14 @@ package collectors
 
 import (
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 var newPartialDeployment = partialDeployment(nil)
 var newPartialReplicaset = partialReplicaset(nil)
+var newPartialNamespace = partialNamespace(nil)
 
 func partialDeployment(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
@@ -36,6 +38,16 @@ func partialDeployment(name *types.NamespacedName) *metav1.PartialObjectMetadata
 func partialReplicaset(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
 	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind("ReplicaSet"))
+	if name != nil {
+		obj.Name = name.Name
+		obj.Namespace = name.Namespace
+	}
+	return obj
+}
+
+func partialNamespace(name *types.NamespacedName) *metav1.PartialObjectMetadata {
+	obj := &metav1.PartialObjectMetadata{}
+	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace
