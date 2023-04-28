@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -79,8 +80,12 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			UnsafeDisableDeepCopyByObject: map[client.Object]bool{
-				&corev1.Pod{}:       true,
-				&corev1.Namespace{}: true,
+				&corev1.Pod{}:                   true,
+				&corev1.Namespace{}:             true,
+				&corev1.ReplicationController{}: true,
+				&v1.Deployment{}:                true,
+				&v1.ReplicaSet{}:                true,
+				&v1.DaemonSet{}:                 true,
 			},
 		}),
 	})
@@ -134,6 +139,14 @@ func main() {
 	externalSrc["Namespace"] = ns
 	externalSrc[collectors.Daemonset] = rc
 
+	// Create source for pods.
+	pd := make(chan event.GenericEvent, 1)
+	podSource := &source.Channel{Source: pd}
+
+	// Create source for services.
+	svc := make(chan event.GenericEvent, 1)
+	serviceSource := &source.Channel{Source: svc}
+
 	if err = (&collectors.PodCollector{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
@@ -142,6 +155,7 @@ func main() {
 		Sink:            eventsChan,
 		ChannelMetrics:  cm,
 		ExternalSources: externalSrc,
+		EndpointsSource: podSource,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PodResource")
 		os.Exit(1)
@@ -204,6 +218,44 @@ func main() {
 		GenericSource:  rcSource,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", collectors.Replicationcontroller)
+		os.Exit(1)
+	}
+
+	if err = (&collectors.ServiceCollector{
+		Client:          mgr.GetClient(),
+		Cache:           events.NewGenericCache(),
+		Name:            "service-collector",
+		Sink:            eventsChan,
+		ChannelMetrics:  cm,
+		EndpointsSource: serviceSource,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", collectors.Service)
+		os.Exit(1)
+	}
+
+	if err = (&collectors.EndpointsDispatcher{
+		Client:                 mgr.GetClient(),
+		Name:                   "endpoint-dispatcher",
+		Sink:                   eventsChan,
+		ChannelMetrics:         cm,
+		ServiceCollectorSource: svc,
+		PodCollectorSource:     pd,
+		Pods:                   make(map[string]map[string]struct{}),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Endpoints")
+		os.Exit(1)
+	}
+
+	if err = (&collectors.EndpointslicesDispatcher{
+		Client:                 mgr.GetClient(),
+		Name:                   "endpointslices-dispatcher",
+		Sink:                   eventsChan,
+		ChannelMetrics:         cm,
+		ServiceCollectorSource: svc,
+		PodCollectorSource:     pd,
+		Pods:                   make(map[string]map[string]struct{}),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
 		os.Exit(1)
 	}
 
