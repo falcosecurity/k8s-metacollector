@@ -121,14 +121,14 @@ func (gc *GenericCache) Delete(key string) {
 				if val > 1 {
 					nodes[node] = val - 1
 				} else {
-					delete(gc.nodes, node)
+					delete(nodes, node)
 				}
 			}
 		}
 		gc.nodes[key] = nodes
 	}
 
-	if len(gc.nodes) == 0 {
+	if len(gc.nodes[key]) == 0 {
 		delete(gc.resources, key)
 	} else {
 		value.SetDeletedFor(nil)
