@@ -31,6 +31,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // NamespaceCollector collects namespaces' metadata, puts them in a local cache and generates appropriate
@@ -85,7 +86,7 @@ func (nc *NamespaceCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	if dRes, ok = nc.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		dRes = events.NewGenericResourceFromMetadata(&ns.ObjectMeta, "Namespace")
+		dRes = events.NewGenericResourceFromMetadata(&ns.ObjectMeta, resource.Namespace)
 	} else if !deleted {
 		// When the resource has already been cached, check if the mutable fields have changed.
 		updated = dRes.UpdateLabels(ns.Labels)
@@ -169,7 +170,7 @@ func (nc *NamespaceCollector) Nodes(ctx context.Context, logger logr.Logger, met
 func (nc *NamespaceCollector) SetupWithManager(mgr ctrl.Manager) error {
 	nc.initMetrics()
 
-	lc, err := newLogConstructor(mgr.GetLogger(), nc.Name, "Namespace")
+	lc, err := newLogConstructor(mgr.GetLogger(), nc.Name, resource.Namespace)
 	if err != nil {
 		return err
 	}

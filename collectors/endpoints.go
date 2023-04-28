@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/alacuku/k8s-metadata/internal/events"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // EndpointsDispatcher each time an endpoint changes it triggers a reconcile for the pods and services to which it relates.
@@ -153,7 +154,7 @@ func (r *EndpointsDispatcher) getPods(eps *corev1.Endpoints, req *ctrl.Request) 
 func (r *EndpointsDispatcher) SetupWithManager(mgr ctrl.Manager) error {
 	r.initMetrics()
 
-	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, "Endpoints")
+	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.Endpoints)
 	if err != nil {
 		return err
 	}

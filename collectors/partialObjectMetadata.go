@@ -19,6 +19,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 var newPartialDeployment = partialDeployment(nil)
@@ -61,7 +63,7 @@ func partialNamespace(name *types.NamespacedName) *metav1.PartialObjectMetadata 
 
 func partialDaemonsets(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
-	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind(Daemonset))
+	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind(resource.Daemonset))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace
@@ -71,7 +73,7 @@ func partialDaemonsets(name *types.NamespacedName) *metav1.PartialObjectMetadata
 
 func partialReplicationController(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
-	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(Replicationcontroller))
+	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(resource.ReplicationController))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace
@@ -81,7 +83,7 @@ func partialReplicationController(name *types.NamespacedName) *metav1.PartialObj
 
 func partialService(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
-	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(Service))
+	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(resource.Service))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace
@@ -91,7 +93,7 @@ func partialService(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 
 func partialPod(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
-	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(Pod))
+	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(resource.Pod))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace

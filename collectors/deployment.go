@@ -32,6 +32,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // DeploymentCollector collects deployments' metadata, puts them in a local cache and generates appropriate
@@ -86,7 +87,7 @@ func (r *DeploymentCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	if dRes, ok = r.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		dRes = events.NewGenericResourceFromMetadata(&dpl.ObjectMeta, "Deployment")
+		dRes = events.NewGenericResourceFromMetadata(&dpl.ObjectMeta, resource.Deployment)
 	} else if !deploymentDeleted {
 		// When the resource has already been cached, check if the mutable fields have changed.
 		updated = dRes.UpdateLabels(dpl.Labels)
@@ -172,7 +173,7 @@ func (r *DeploymentCollector) Nodes(ctx context.Context, logger logr.Logger, met
 func (r *DeploymentCollector) SetupWithManager(mgr ctrl.Manager) error {
 	r.initMetrics()
 
-	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, "Deployment")
+	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.Deployment)
 	if err != nil {
 		return err
 	}
