@@ -12,16 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package collectors
+package resource
 
 const (
-	namespace = "Namespace"
+	// Namespace kind as used by k8s resources.
+	Namespace = "Namespace"
 	// Daemonset kind as used by k8s resources.
 	Daemonset = "DaemonSet"
-	// Replicationcontroller kind as used by k8s resources.
-	Replicationcontroller = "ReplicationController"
+	// Deployment kind as used by k8s resources.
+	Deployment = "Deployment"
+	// ReplicationController kind as used by k8s resources.
+	ReplicationController = "ReplicationController"
+	// ReplicaSet kind as used by k8s resources.
+	ReplicaSet = "ReplicaSet"
 	// Service kind as used by k8s resources.
 	Service = "Service"
 	// Pod kind as used by k8s resources.
 	Pod = "Pod"
+	// Endpoints kind as used by k8s resources.
+	Endpoints = "Endpoints"
+	// EndpointSlice kind as used by the k8s resources.
+	EndpointSlice = "EndpointSlice"
 )

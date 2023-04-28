@@ -32,6 +32,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // ReplicasetCollector collects replicasets' metadata, puts them in a local cache and generates appropriate
@@ -86,7 +87,7 @@ func (r *ReplicasetCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	if rsRes, ok = r.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		rsRes = events.NewGenericResourceFromMetadata(&rs.ObjectMeta, "ReplicaSet")
+		rsRes = events.NewGenericResourceFromMetadata(&rs.ObjectMeta, resource.ReplicaSet)
 	} else if !replicasetDeleted {
 		// When the resource has already been cached, check if the mutable fields have changed.
 		updated = rsRes.UpdateLabels(rs.Labels)
@@ -171,7 +172,7 @@ func (r *ReplicasetCollector) Nodes(ctx context.Context, logger logr.Logger, met
 func (r *ReplicasetCollector) SetupWithManager(mgr ctrl.Manager) error {
 	r.initMetrics()
 
-	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, "ReplicaSet")
+	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.ReplicaSet)
 	if err != nil {
 		return err
 	}

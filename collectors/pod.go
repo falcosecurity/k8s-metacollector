@@ -38,6 +38,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // PodCollector collects pods' metadata, puts them in a local cache and generates appropriate
@@ -174,7 +175,7 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 			UID: owner.UID,
 		}})
 		// If we are handling a replicaset, then fetch it and check if it has an owner.
-		if owner.Kind == "ReplicaSet" {
+		if owner.Kind == resource.ReplicaSet {
 			replicaset := v1.ReplicaSet{}
 			err := pc.Get(ctx, types.NamespacedName{
 				Namespace: pod.Namespace,
@@ -230,7 +231,7 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 		}
 	}
 
-	if evt.AddReferencesForKind("Service", svcRefs) {
+	if evt.AddReferencesForKind(resource.Service, svcRefs) {
 		evt.SetModifiedFor([]string{pod.Spec.NodeName})
 	}
 
@@ -255,7 +256,7 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 		return false, err
 	}
 
-	return evt.AddReferencesForKind("Namespace", []fields.Reference{{
+	return evt.AddReferencesForKind(resource.Namespace, []fields.Reference{{
 		Name: nsKey,
 		UID:  namespace.UID,
 	}}), nil
@@ -272,11 +273,11 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.PodResource) {
 			go func(name types.NamespacedName, kind string) {
 				var obj client.Object
 				switch kind {
-				case "Deployment":
+				case resource.Deployment:
 					obj = partialDeployment(&name)
-				case "ReplicaSet":
+				case resource.ReplicaSet:
 					obj = partialReplicaset(&name)
-				case namespace:
+				case resource.Namespace:
 					obj = partialNamespace(&name)
 				}
 				if obj != nil {
@@ -298,7 +299,7 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.PodResource) {
 		for _, ref := range refs {
 			go func(name types.NamespacedName, kind string) {
 				var obj client.Object
-				if kind == namespace {
+				if kind == resource.Namespace {
 					obj = partialNamespace(&name)
 				}
 				if obj != nil {
@@ -334,7 +335,7 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 		return false
 	}
 
-	lc, err := newLogConstructor(mgr.GetLogger(), pc.Name, "PodResource")
+	lc, err := newLogConstructor(mgr.GetLogger(), pc.Name, resource.Pod)
 	if err != nil {
 		return err
 	}

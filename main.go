@@ -37,6 +37,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/collectors"
 	"github.com/alacuku/k8s-metadata/internal/events"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 var (
@@ -134,10 +135,10 @@ func main() {
 	rcSource := &source.Channel{Source: rc}
 
 	externalSrc := make(map[string]chan<- event.GenericEvent)
-	externalSrc["Deployment"] = dpl
-	externalSrc["ReplicaSet"] = rs
-	externalSrc["Namespace"] = ns
-	externalSrc[collectors.Daemonset] = rc
+	externalSrc[resource.Deployment] = dpl
+	externalSrc[resource.ReplicaSet] = rs
+	externalSrc[resource.Namespace] = ns
+	externalSrc[resource.Daemonset] = rc
 
 	// Create source for pods.
 	pd := make(chan event.GenericEvent, 1)
@@ -157,7 +158,7 @@ func main() {
 		ExternalSources: externalSrc,
 		EndpointsSource: podSource,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PodResource")
+		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Pod)
 		os.Exit(1)
 	}
 
@@ -169,7 +170,7 @@ func main() {
 		ChannelMetrics: cm,
 		GenericSource:  deploymentSource,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Deployment")
+		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Deployment)
 		os.Exit(1)
 	}
 
@@ -181,7 +182,7 @@ func main() {
 		ChannelMetrics: cm,
 		GenericSource:  replicasetSource,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ReplicaSet")
+		setupLog.Error(err, "unable to create collector for", "resource kind", resource.ReplicaSet)
 		os.Exit(1)
 	}
 
@@ -193,7 +194,7 @@ func main() {
 		ChannelMetrics: cm,
 		GenericSource:  namespaceSource,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
+		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Namespace)
 		os.Exit(1)
 	}
 
@@ -205,7 +206,7 @@ func main() {
 		ChannelMetrics: cm,
 		GenericSource:  daemonsetSource,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Daemonset")
+		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Daemonset)
 		os.Exit(1)
 	}
 
@@ -217,7 +218,7 @@ func main() {
 		ChannelMetrics: cm,
 		GenericSource:  rcSource,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", collectors.Replicationcontroller)
+		setupLog.Error(err, "unable to create collector for", "resource kind", resource.ReplicationController)
 		os.Exit(1)
 	}
 
@@ -229,7 +230,7 @@ func main() {
 		ChannelMetrics:  cm,
 		EndpointsSource: serviceSource,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", collectors.Service)
+		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Service)
 		os.Exit(1)
 	}
 
@@ -242,7 +243,7 @@ func main() {
 		PodCollectorSource:     pd,
 		Pods:                   make(map[string]map[string]struct{}),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Endpoints")
+		setupLog.Error(err, "unable to create dispatcher for", "resource kind", resource.EndpointSlice)
 		os.Exit(1)
 	}
 
@@ -255,7 +256,7 @@ func main() {
 		PodCollectorSource:     pd,
 		Pods:                   make(map[string]map[string]struct{}),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
+		setupLog.Error(err, "unable to create dispatcher for", "resource kind", resource.EndpointSlice)
 		os.Exit(1)
 	}
 

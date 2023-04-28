@@ -31,6 +31,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // ReplicationcontrollerCollector collects replicationcontrollers' metadata, puts them in a local cache and generates appropriate
@@ -85,7 +86,7 @@ func (r *ReplicationcontrollerCollector) Reconcile(ctx context.Context, req ctrl
 	if rcRes, ok = r.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		rcRes = events.NewGenericResourceFromMetadata(&rc.ObjectMeta, Replicationcontroller)
+		rcRes = events.NewGenericResourceFromMetadata(&rc.ObjectMeta, resource.ReplicationController)
 	} else if !deleted {
 		// When the resource has already been cached, check if the mutable fields have changed.
 		updated = rcRes.UpdateLabels(rc.Labels)
@@ -171,7 +172,7 @@ func (r *ReplicationcontrollerCollector) Nodes(ctx context.Context, logger logr.
 func (r *ReplicationcontrollerCollector) SetupWithManager(mgr ctrl.Manager) error {
 	r.initMetrics()
 
-	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, Replicationcontroller)
+	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.ReplicationController)
 	if err != nil {
 		return err
 	}

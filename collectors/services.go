@@ -31,6 +31,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // ServiceCollector collects services' metadata, puts them in a local cache and generates appropriate
@@ -85,7 +86,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if sRes, ok = r.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		sRes = events.NewGenericResourceFromMetadata(&svc.ObjectMeta, Service)
+		sRes = events.NewGenericResourceFromMetadata(&svc.ObjectMeta, resource.Service)
 	} else if !serviceDeleted {
 		// When the resource has already been cached, check if the mutable fields have changed.
 		updated = sRes.UpdateLabels(svc.Labels)
@@ -167,7 +168,7 @@ func (r *ServiceCollector) Nodes(ctx context.Context, logger logr.Logger, svc *c
 func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
 	r.initMetrics()
 
-	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, Service)
+	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.Service)
 	if err != nil {
 		return err
 	}

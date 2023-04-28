@@ -32,6 +32,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 // DaemonsetCollector collects daemonsets' metadata, puts them in a local cache and generates appropriate
@@ -86,7 +87,7 @@ func (r *DaemonsetCollector) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if dRes, ok = r.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		dRes = events.NewGenericResourceFromMetadata(&ds.ObjectMeta, Daemonset)
+		dRes = events.NewGenericResourceFromMetadata(&ds.ObjectMeta, resource.Daemonset)
 	} else if !deleted {
 		// When the resource has already been cached, check if the mutable fields have changed.
 		updated = dRes.UpdateLabels(ds.Labels)
@@ -172,7 +173,7 @@ func (r *DaemonsetCollector) Nodes(ctx context.Context, logger logr.Logger, meta
 func (r *DaemonsetCollector) SetupWithManager(mgr ctrl.Manager) error {
 	r.initMetrics()
 
-	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, Daemonset)
+	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.Daemonset)
 	if err != nil {
 		return err
 	}
