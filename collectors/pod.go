@@ -31,8 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	event2 "sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
@@ -48,6 +50,7 @@ type PodCollector struct {
 	Cache           events.PodCache
 	Refs            references
 	ExternalSources map[string]chan<- event2.GenericEvent
+	EndpointsSource source.Source
 	Name            string
 }
 
@@ -338,6 +341,7 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}, builder.WithPredicates(predicate.NewPredicateFuncs(nodeNameFilter))).
+		Watches(pc.EndpointsSource, &handler.EnqueueRequestForObject{}).
 		WithOptions(controller.Options{LogConstructor: lc}).
 		Complete(pc)
 }

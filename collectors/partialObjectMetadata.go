@@ -27,6 +27,8 @@ var newPartialNamespace = partialNamespace(nil)
 var newPartialDaemonset = partialDaemonsets(nil)
 var newPartialReplicationController = partialReplicationController(nil)
 
+// TODO(alacuku): merge in a single function using a switch case.
+
 func partialDeployment(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
 	obj.SetGroupVersionKind(v1.SchemeGroupVersion.WithKind("Deployment"))
@@ -70,6 +72,26 @@ func partialDaemonsets(name *types.NamespacedName) *metav1.PartialObjectMetadata
 func partialReplicationController(name *types.NamespacedName) *metav1.PartialObjectMetadata {
 	obj := &metav1.PartialObjectMetadata{}
 	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(Replicationcontroller))
+	if name != nil {
+		obj.Name = name.Name
+		obj.Namespace = name.Namespace
+	}
+	return obj
+}
+
+func partialService(name *types.NamespacedName) *metav1.PartialObjectMetadata {
+	obj := &metav1.PartialObjectMetadata{}
+	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(Service))
+	if name != nil {
+		obj.Name = name.Name
+		obj.Namespace = name.Namespace
+	}
+	return obj
+}
+
+func partialPod(name *types.NamespacedName) *metav1.PartialObjectMetadata {
+	obj := &metav1.PartialObjectMetadata{}
+	obj.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind(Pod))
 	if name != nil {
 		obj.Name = name.Name
 		obj.Namespace = name.Namespace

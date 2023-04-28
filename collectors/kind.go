@@ -20,4 +20,8 @@ const (
 	Daemonset = "DaemonSet"
 	// Replicationcontroller kind as used by k8s resources.
 	Replicationcontroller = "ReplicationController"
+	// Service kind as used by k8s resources.
+	Service = "Service"
+	// Pod kind as used by k8s resources.
+	Pod = "Pod"
 )
