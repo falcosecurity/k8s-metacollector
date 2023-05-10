@@ -33,7 +33,6 @@ import (
 	event2 "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/alacuku/k8s-metadata/internal/events"
@@ -341,8 +340,10 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}, builder.WithPredicates(predicate.NewPredicateFuncs(nodeNameFilter))).
-		Watches(pc.EndpointsSource, &handler.EnqueueRequestForObject{}).
+		For(&corev1.Pod{},
+			builder.WithPredicates(predicatesWithMetrics(pc.Name, apiServerSource, nodeNameFilter))).
+		Watches(pc.EndpointsSource, &handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(pc.Name, resource.EndpointSlice, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
 		Complete(pc)
 }

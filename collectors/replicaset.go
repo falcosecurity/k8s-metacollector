@@ -178,8 +178,12 @@ func (r *ReplicasetCollector) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1.ReplicaSet{}, builder.OnlyMetadata).
+		For(&v1.ReplicaSet{},
+			builder.OnlyMetadata,
+			builder.WithPredicates(predicatesWithMetrics(r.Name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		Watches(r.GenericSource, &handler.EnqueueRequestForObject{}).
+		Watches(r.GenericSource,
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.Pod, nil))).
 		Complete(r)
 }

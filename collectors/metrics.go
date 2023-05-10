@@ -19,14 +19,22 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const (
-	labelAdded   = "added"
-	labelUpdated = "modified"
-	labelDeleted = "deleted"
-	labelChannel = "pipeline"
+	labelAdded      = "added"
+	labelUpdated    = "modified"
+	labelDeleted    = "deleted"
+	labelChannel    = "pipeline"
+	labelCreate     = "Create"
+	labelUpdate     = "Update"
+	labelDelete     = "Delete"
+	labelGeneric    = "Generic"
+	apiServerSource = "api-server"
 )
 
 var (
@@ -51,6 +59,15 @@ var (
 		Name: "event_sent_total",
 		Help: "Total number of events sent to message broker",
 	}, []string{"event"})
+
+	// eventReceived is a prometheus counter metrics which holds the total
+	// number of events received from the api server per collector. It has three labels. Collector label refers
+	// to the collector name, source refers to the source from where we are receiving the events,
+	// and type label refers to the event type, i.e. create, update, delete, generic.
+	eventReceived = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "collector_event_received",
+		Help: "Total number of events received from the api-server per collector",
+	}, []string{"collector", "source", "type"})
 )
 
 func init() {
@@ -58,6 +75,7 @@ func init() {
 	metrics.Registry.MustRegister(eventTotal)
 	metrics.Registry.MustRegister(EventLatency)
 	metrics.Registry.MustRegister(eventSent)
+	metrics.Registry.MustRegister(eventReceived)
 }
 
 // ChannelMetrics holds the metrics related to the events sent in a given channel.
@@ -106,5 +124,44 @@ func (cm *ChannelMetrics) Receive(evt interface{}) {
 	if startTime, ok := cm.sentTimes[evt]; ok {
 		cm.latency.WithLabelValues(labelChannel).Observe(time.Since(startTime).Seconds())
 		delete(cm.sentTimes, evt)
+	}
+}
+
+// predicatesWithMetrics tracks the number of events received from the api-server.
+func predicatesWithMetrics(collectorName, sourceName string, filter func(object client.Object) bool) predicate.Funcs {
+	eventReceived.WithLabelValues(collectorName, sourceName, labelCreate).Add(0)
+	eventReceived.WithLabelValues(collectorName, sourceName, labelDelete).Add(0)
+	eventReceived.WithLabelValues(collectorName, sourceName, labelUpdate).Add(0)
+	eventReceived.WithLabelValues(collectorName, sourceName, labelGeneric).Add(0)
+
+	return predicate.Funcs{
+		CreateFunc: func(event event.CreateEvent) bool {
+			eventReceived.WithLabelValues(collectorName, sourceName, labelCreate).Inc()
+			if filter != nil {
+				return filter(event.Object)
+			}
+			return true
+		},
+		DeleteFunc: func(event event.DeleteEvent) bool {
+			eventReceived.WithLabelValues(collectorName, sourceName, labelDelete).Inc()
+			if filter != nil {
+				return filter(event.Object)
+			}
+			return true
+		},
+		UpdateFunc: func(event event.UpdateEvent) bool {
+			eventReceived.WithLabelValues(collectorName, sourceName, labelUpdate).Inc()
+			if filter != nil {
+				return filter(event.ObjectNew)
+			}
+			return true
+		},
+		GenericFunc: func(event event.GenericEvent) bool {
+			eventReceived.WithLabelValues(collectorName, sourceName, labelGeneric).Inc()
+			if filter != nil {
+				return filter(event.Object)
+			}
+			return true
+		},
 	}
 }

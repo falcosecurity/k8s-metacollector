@@ -21,6 +21,7 @@ import (
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -42,7 +43,7 @@ type EndpointslicesDispatcher struct {
 	Name                   string
 }
 
-//+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpoints,verbs=get;list;watch
+//+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
 
 // Reconcile if a new pod has been added/removed it sends an event (triggers) to the pod collector. The
 // same is done for the Service to which the endpoint belongs.
@@ -154,7 +155,8 @@ func (r *EndpointslicesDispatcher) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1.EndpointSlice{}).
+		For(&discoveryv1.EndpointSlice{},
+			builder.WithPredicates(predicatesWithMetrics(r.Name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
 		Complete(r)
 }
