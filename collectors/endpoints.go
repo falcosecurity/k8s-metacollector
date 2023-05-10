@@ -18,7 +18,6 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/discovery/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -160,8 +159,8 @@ func (r *EndpointsDispatcher) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Endpoints{}).
+		For(&corev1.Endpoints{},
+			builder.WithPredicates(predicatesWithMetrics(r.Name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		Owns(&v1.EndpointSlice{}, builder.OnlyMetadata).
 		Complete(r)
 }

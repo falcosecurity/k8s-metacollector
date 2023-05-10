@@ -176,8 +176,12 @@ func (nc *NamespaceCollector) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Namespace{}, builder.OnlyMetadata).
+		For(&corev1.Namespace{},
+			builder.OnlyMetadata,
+			builder.WithPredicates(predicatesWithMetrics(nc.Name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		Watches(nc.GenericSource, &handler.EnqueueRequestForObject{}).
+		Watches(nc.GenericSource,
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(nc.Name, resource.Pod, nil))).
 		Complete(nc)
 }

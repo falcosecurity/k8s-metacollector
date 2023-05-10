@@ -19,7 +19,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/discovery/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -174,9 +174,14 @@ func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Service{}).
+		For(&corev1.Service{},
+			builder.WithPredicates(predicatesWithMetrics(r.Name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		Owns(&v1.EndpointSlice{}, builder.OnlyMetadata).
-		Watches(r.EndpointsSource, &handler.EnqueueRequestForObject{}).
+		Watches(r.EndpointsSource,
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.Endpoints, nil))).
+		Owns(&discoveryv1.EndpointSlice{},
+			builder.OnlyMetadata,
+			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.EndpointSlice, nil))).
 		Complete(r)
 }

@@ -178,8 +178,12 @@ func (r *ReplicationcontrollerCollector) SetupWithManager(mgr ctrl.Manager) erro
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.ReplicationController{}, builder.OnlyMetadata).
+		For(&corev1.ReplicationController{},
+			builder.OnlyMetadata,
+			builder.WithPredicates(predicatesWithMetrics(r.Name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		Watches(r.GenericSource, &handler.EnqueueRequestForObject{}).
+		Watches(r.GenericSource,
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.Pod, nil))).
 		Complete(r)
 }
