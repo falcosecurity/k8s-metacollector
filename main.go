@@ -24,6 +24,7 @@ import (
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -87,6 +88,15 @@ func main() {
 				&v1.Deployment{}:                true,
 				&v1.ReplicaSet{}:                true,
 				&v1.DaemonSet{}:                 true,
+			},
+			TransformByObject: cache.TransformByObject{
+				&corev1.Pod{}:                collectors.PodTransformer(setupLog),
+				&corev1.Service{}:            collectors.ServiceTransformer(setupLog),
+				&corev1.Namespace{}:          collectors.PartialObjectTransformer(setupLog),
+				&v1.Deployment{}:             collectors.PartialObjectTransformer(setupLog),
+				&v1.ReplicaSet{}:             collectors.PartialObjectTransformer(setupLog),
+				&v1.DaemonSet{}:              collectors.PartialObjectTransformer(setupLog),
+				&discoveryv1.EndpointSlice{}: collectors.EndpointsliceTransformer(setupLog),
 			},
 		}),
 	})
