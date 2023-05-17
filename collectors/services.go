@@ -181,7 +181,6 @@ func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.Endpoints, nil))).
 		Owns(&discoveryv1.EndpointSlice{},
-			builder.OnlyMetadata,
 			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.EndpointSlice, nil))).
 		Complete(r)
 }
