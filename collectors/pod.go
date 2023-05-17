@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -175,11 +174,11 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 		}})
 		// If we are handling a replicaset, then fetch it and check if it has an owner.
 		if owner.Kind == resource.ReplicaSet {
-			replicaset := v1.ReplicaSet{}
+			replicaset := newPartialReplicaset
 			err := pc.Get(ctx, types.NamespacedName{
 				Namespace: pod.Namespace,
 				Name:      owner.Name,
-			}, &replicaset)
+			}, replicaset)
 			if err != nil && !k8sApiErrors.IsNotFound(err) {
 				logger.Error(err, "unable to get resource related to", "ReplicaSet", klog.KRef(pod.Namespace, owner.Name))
 				return updated, err
@@ -244,12 +243,12 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 	}
 
 	// Get the pod's namespace.
-	namespace := corev1.Namespace{}
+	namespace := newPartialNamespace
 	nsKey := types.NamespacedName{
 		Namespace: "",
 		Name:      pod.Namespace,
 	}
-	err := pc.Get(ctx, nsKey, &namespace)
+	err := pc.Get(ctx, nsKey, namespace)
 	if err != nil {
 		logger.Error(err, "unable to get", "namespace", pod.Namespace)
 		return false, err
