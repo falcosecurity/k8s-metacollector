@@ -17,9 +17,8 @@ package events
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/metadata"
 )
 
 const (
@@ -36,7 +35,7 @@ type GenericEvent struct {
 	Reason           string
 	Metadata         *fields.Metadata
 	DestinationNodes []string
-	References       map[string][]types.UID
+	References       map[string][]string
 }
 
 // Nodes returns the destination nodes.
@@ -53,4 +52,18 @@ func (ge *GenericEvent) String() string {
 // Type returns the event type.
 func (ge *GenericEvent) Type() string {
 	return ge.Reason
+}
+
+// GetMetadata returns the metadata.
+func (ge *GenericEvent) GetMetadata() *fields.Metadata {
+	return ge.Metadata
+}
+
+// Refs returns the references.
+func (ge *GenericEvent) Refs() map[string]*metadata.ListOfStrings {
+	tmp := make(map[string]*metadata.ListOfStrings, len(ge.References))
+	for k, val := range ge.References {
+		tmp[k] = &metadata.ListOfStrings{List: val}
+	}
+	return tmp
 }
