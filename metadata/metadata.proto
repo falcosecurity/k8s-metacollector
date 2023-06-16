@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option go_package = "github.com/alacuku/k8s-metadata/metadata";
+
+package metadata;
+
+// Interface exported by the server.
+service Metadata {
+  // Returns a stream of events for the resources that match the selector.
+  rpc Watch(Selector) returns (stream Event) {}
+}
+
+// A Selector defines the resource types for which a client wants to receive
+// the metadata. For each resource the client can choose to filter them by node.
+// Ex. [pod, NodeName] the client will receive only pods that run on the specified node.
+// nodeName is used to identify the client.
+message Selector {
+  string nodeName = 1;
+  map<string, string> resourceKinds = 2;
+}
+
+// References holds the references to other resources. Ex. an event for a pod
+// resource will hold references to deployments/replicasets/services and other
+// resources linked to it. Entries are [resourceKind, UID].
+message References {
+  map<string, ListOfStrings> refs = 1;
+}
+
+message ListOfStrings {
+  repeated string list = 1;
+}
+
+// Fields sent for each resource.
+message Fields {
+  string uid = 1;
+  string kind = 2;
+  string name = 3;
+  string namespace = 4;
+  map<string, string> labels = 5;
+}
+
+// An Event is received in response to a Watch rpc.
+// It contains the metadata for a given resource.
+message Event {
+  string reason = 1;
+  Fields metadata =2;
+  optional References refs = 3;
+}
