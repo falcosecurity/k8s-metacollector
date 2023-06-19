@@ -36,14 +36,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/alacuku/k8s-metadata/broker"
 	"github.com/alacuku/k8s-metadata/collectors"
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/resource"
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -69,6 +69,7 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	setupLog := ctrl.Log.WithName("setup")
 	// Check node name has been set.
 	if nodeName == "" {
 		setupLog.Error(fmt.Errorf("can not be empty"), "please set a value for", "flag", "--node-name")
@@ -117,12 +118,6 @@ func main() {
 
 	eventsChan := make(chan events.Event, 1)
 	cm := collectors.NewChannelMetrics()
-	go func() {
-		for msg := range eventsChan {
-			cm.Receive(msg)
-			fmt.Println(msg.String())
-		}
-	}()
 
 	// Create source for deployments.
 	dpl := make(chan event.GenericEvent, 1)
@@ -158,7 +153,8 @@ func main() {
 	svc := make(chan event.GenericEvent, 1)
 	serviceSource := &source.Channel{Source: svc}
 
-	if err = (&collectors.PodCollector{
+	podChanTrig := make(chan string)
+	podCollector := &collectors.PodCollector{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		Cache:           events.NewPodCache(),
@@ -167,79 +163,105 @@ func main() {
 		ChannelMetrics:  cm,
 		ExternalSources: externalSrc,
 		EndpointsSource: podSource,
-	}).SetupWithManager(mgr); err != nil {
+		SubscriberChan:  podChanTrig,
+	}
+
+	if err = podCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Pod)
 		os.Exit(1)
 	}
 
-	if err = (&collectors.DeploymentCollector{
+	dplChanTrig := make(chan string)
+	dplCollector := &collectors.DeploymentCollector{
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "deployment-collector",
 		Sink:           eventsChan,
 		ChannelMetrics: cm,
 		GenericSource:  deploymentSource,
-	}).SetupWithManager(mgr); err != nil {
+		SubscriberChan: dplChanTrig,
+	}
+
+	if err = dplCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Deployment)
 		os.Exit(1)
 	}
 
-	if err = (&collectors.ReplicasetCollector{
+	rsChanTrig := make(chan string)
+	rsCollector := &collectors.ReplicasetCollector{
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "replicaset-collector",
 		Sink:           eventsChan,
 		ChannelMetrics: cm,
 		GenericSource:  replicasetSource,
-	}).SetupWithManager(mgr); err != nil {
+		SubscriberChan: rsChanTrig,
+	}
+
+	if err = rsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.ReplicaSet)
 		os.Exit(1)
 	}
 
-	if err = (&collectors.NamespaceCollector{
+	nsChanTrig := make(chan string)
+	nsCollector := &collectors.NamespaceCollector{
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "namespace-collector",
 		Sink:           eventsChan,
 		ChannelMetrics: cm,
 		GenericSource:  namespaceSource,
-	}).SetupWithManager(mgr); err != nil {
+		SubscriberChan: nsChanTrig,
+	}
+
+	if err = nsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Namespace)
 		os.Exit(1)
 	}
 
-	if err = (&collectors.DaemonsetCollector{
+	dsCollector := &collectors.DaemonsetCollector{
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "daemonset-collector",
 		Sink:           eventsChan,
 		ChannelMetrics: cm,
 		GenericSource:  daemonsetSource,
-	}).SetupWithManager(mgr); err != nil {
+	}
+	dsChanTrig := make(chan string)
+	dsCollector.TriggerEventsForSubscriber(dsChanTrig)
+	if err = dsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Daemonset)
 		os.Exit(1)
 	}
 
-	if err = (&collectors.ReplicationcontrollerCollector{
+	rcChanTrig := make(chan string)
+	rcCollector := &collectors.ReplicationcontrollerCollector{
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "replicationcontroller-collector",
 		Sink:           eventsChan,
 		ChannelMetrics: cm,
 		GenericSource:  rcSource,
-	}).SetupWithManager(mgr); err != nil {
+		SubscriberChan: rcChanTrig,
+	}
+
+	if err = rcCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.ReplicationController)
 		os.Exit(1)
 	}
 
-	if err = (&collectors.ServiceCollector{
+	svcChanTrig := make(chan string)
+	svcCollector := &collectors.ServiceCollector{
 		Client:          mgr.GetClient(),
 		Cache:           events.NewGenericCache(),
 		Name:            "service-collector",
 		Sink:            eventsChan,
 		ChannelMetrics:  cm,
 		EndpointsSource: serviceSource,
-	}).SetupWithManager(mgr); err != nil {
+		SubscriberChan:  svcChanTrig,
+	}
+
+	if err = svcCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Service)
 		os.Exit(1)
 	}
@@ -270,12 +292,67 @@ func main() {
 		os.Exit(1)
 	}
 
+	br, err := broker.New(ctrl.Log.WithName("broker"), eventsChan, map[string]chan<- string{
+		resource.Pod:                   podChanTrig,
+		resource.Deployment:            dplChanTrig,
+		resource.ReplicaSet:            rsChanTrig,
+		resource.Daemonset:             dsChanTrig,
+		resource.Service:               svcChanTrig,
+		resource.Namespace:             nsChanTrig,
+		resource.ReplicationController: rcChanTrig,
+	})
+
+	if err != nil {
+		setupLog.Error(err, "unable to create the broker")
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(br); err != nil {
+		setupLog.Error(err, "unable to add broker to the manager")
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(podCollector); err != nil {
+		setupLog.Error(err, "unable to add pod collector to the manager as a runnable")
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(dsCollector); err != nil {
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dsCollector.Name)
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(nsCollector); err != nil {
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", nsCollector.Name)
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(dplCollector); err != nil {
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dplCollector.Name)
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(rsCollector); err != nil {
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rsCollector.Name)
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(rcCollector); err != nil {
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rcCollector.Name)
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(svcCollector); err != nil {
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", svcCollector.Name)
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
+
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)

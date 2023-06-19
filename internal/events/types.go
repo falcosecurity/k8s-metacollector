@@ -148,6 +148,35 @@ func (g *GenericResource) ToEvents() []Event {
 	return evts
 }
 
+// ToEvent returns an event based on the reason for the specified nodes.
+func (g *GenericResource) ToEvent(reason string, nodes []string) Event {
+	var evt *GenericEvent
+	switch reason {
+	case Added:
+		evt = &GenericEvent{
+			Reason:           Added,
+			Metadata:         g.Metadata.DeepCopy(),
+			DestinationNodes: nodes,
+		}
+	case Modified:
+		evt = &GenericEvent{
+			Reason:           Modified,
+			Metadata:         g.Metadata.DeepCopy(),
+			DestinationNodes: nodes,
+		}
+	case Deleted:
+		evt = &GenericEvent{
+			Reason:           Deleted,
+			Metadata:         g.Metadata.DeepCopy(),
+			DestinationNodes: nodes,
+		}
+	default:
+		evt = &GenericEvent{}
+	}
+
+	return evt
+}
+
 // NewPodResourceFromMetadata creates a new PodResource containing the given metadata.
 func NewPodResourceFromMetadata(meta *metav1.ObjectMeta) *PodResource {
 	return &PodResource{
@@ -167,18 +196,20 @@ func (p *PodResource) AddReferencesForKind(kind string, refs []fields.Reference)
 	if p.ResourceReferences == nil {
 		p.ResourceReferences = make(map[string][]fields.Reference)
 	}
+
 	refsLen := len(refs)
-	// If the passed refs have length 0 for the given resource kind, which is acceptable then we delete the current one.
-	if refsLen == 0 {
-		delete(p.ResourceReferences, kind)
-		return true
-	}
 
 	// Check if we already have references for the given resource kind.
 	oldRefs, ok := p.ResourceReferences[kind]
 	// If no refs found and the new refs are not empty then set them for the given resource kind.
 	if !ok && refsLen != 0 {
 		p.ResourceReferences[kind] = refs
+		return true
+	}
+
+	// If the passed refs have length 0 for the given resource kind, which is acceptable then we delete the current one.
+	if refsLen == 0 && len(oldRefs) != 0 {
+		delete(p.ResourceReferences, kind)
 		return true
 	}
 
@@ -232,4 +263,36 @@ func (p *PodResource) ToEvents() []Event {
 	}
 
 	return evts
+}
+
+// ToEvent returns an event based on the reason for the specified nodes.
+func (p *PodResource) ToEvent(reason string, nodes []string) Event {
+	var evt *GenericEvent
+	switch reason {
+	case Added:
+		evt = &GenericEvent{
+			Reason:           Added,
+			Metadata:         p.Metadata.DeepCopy(),
+			DestinationNodes: nodes,
+			References:       p.ResourceReferences.ToFlatMap(),
+		}
+	case Modified:
+		evt = &GenericEvent{
+			Reason:           Modified,
+			Metadata:         p.Metadata.DeepCopy(),
+			DestinationNodes: nodes,
+			References:       p.ResourceReferences.ToFlatMap(),
+		}
+	case Deleted:
+		evt = &GenericEvent{
+			Reason:           Deleted,
+			Metadata:         p.Metadata.DeepCopy(),
+			DestinationNodes: nodes,
+			References:       p.ResourceReferences.ToFlatMap(),
+		}
+	default:
+		evt = &GenericEvent{}
+	}
+
+	return evt
 }

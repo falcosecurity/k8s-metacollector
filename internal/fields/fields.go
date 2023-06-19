@@ -104,13 +104,13 @@ type References map[string][]Reference
 
 // ToFlatMap return the references in a map where the key is the kind of the object for which the references
 // are saved. The value is slice containing all the types.UID for objects of the same kind as the key.
-func (r *References) ToFlatMap() map[string][]types.UID {
-	flatMap := make(map[string][]types.UID)
+func (r *References) ToFlatMap() map[string][]string {
+	flatMap := make(map[string][]string)
 
 	for key, val := range *r {
-		refs := make([]types.UID, len(val))
+		refs := make([]string, len(val))
 		for i := range val {
-			refs[i] = val[i].UID
+			refs[i] = string(val[i].UID)
 		}
 		flatMap[key] = refs
 	}

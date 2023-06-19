@@ -16,6 +16,7 @@ package collectors
 
 import (
 	"context"
+	"sync"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -43,6 +44,8 @@ type ServiceCollector struct {
 	Cache           events.GenericCache
 	EndpointsSource source.Source
 	Name            string
+	SubscriberChan  <-chan string
+	logger          logr.Logger
 }
 
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
@@ -136,6 +139,49 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return ctrl.Result{}, nil
 }
 
+// Start implements the runnable interface needed in order to handle the start/stop
+// using the manager. It starts go routines needed by the collector to interact with the
+// broker.
+func (r *ServiceCollector) Start(ctx context.Context) error {
+	wg := sync.WaitGroup{}
+	// it listens for new subscribers and sends the cached events to the
+	// subscriber received on the channel.
+	dispatchEventsOnSubcribe := func(ctx context.Context) {
+		wg.Add(1)
+		for {
+			select {
+			case sub := <-r.SubscriberChan:
+				r.logger.V(5).Info("Dispatching events", "subscriber", sub)
+				dispatch := func(res *events.GenericResource) {
+					// Check if the pod is related to the subscriber.
+					if _, ok := res.Nodes[sub]; ok {
+						r.Sink <- res.ToEvent(events.Added, []string{sub})
+					}
+				}
+				r.Cache.ForEach(dispatch)
+
+			case <-ctx.Done():
+				r.logger.V(5).Info("Stopping dispatcher on new subscribers")
+				wg.Done()
+				return
+			}
+		}
+	}
+
+	r.logger.Info("Starting event dispatcher for new subscribers")
+	// Start the dispatcher.
+	go dispatchEventsOnSubcribe(ctx)
+
+	// Wait for shutdown signal.
+	<-ctx.Done()
+	r.logger.Info("Waiting for event dispatcher to finish")
+	// Wait for goroutines to stop.
+	wg.Wait()
+	r.logger.Info("Dispatcher finished")
+
+	return nil
+}
+
 func (r *ServiceCollector) initMetrics() {
 	eventTotal.WithLabelValues(r.Name, labelAdded).Add(0)
 	eventTotal.WithLabelValues(r.Name, labelUpdated).Add(0)
@@ -167,6 +213,9 @@ func (r *ServiceCollector) Nodes(ctx context.Context, logger logr.Logger, svc *c
 // SetupWithManager sets up the controller with the Manager.
 func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
 	r.initMetrics()
+
+	// Set the generic logger to be used in other function then the reconcile loop.
+	r.logger = mgr.GetLogger().WithName(r.Name)
 
 	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.Service)
 	if err != nil {
