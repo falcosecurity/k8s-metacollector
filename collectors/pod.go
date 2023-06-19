@@ -16,6 +16,7 @@ package collectors
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -51,6 +52,8 @@ type PodCollector struct {
 	ExternalSources map[string]chan<- event2.GenericEvent
 	EndpointsSource source.Source
 	Name            string
+	SubscriberChan  <-chan string
+	logger          logr.Logger
 }
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
@@ -308,6 +311,49 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.PodResource) {
 	}
 }
 
+// Start implements the runnable interface needed in order to handle the start/stop
+// using the manager. It starts go routines needed by the collector to interact with the
+// broker.
+func (pc *PodCollector) Start(ctx context.Context) error {
+	wg := sync.WaitGroup{}
+	// it listens for new subscribers and sends the cached events to the
+	// subscriber received on the channel.
+	dispatchEventsOnSubcribe := func(ctx context.Context) {
+		wg.Add(1)
+		for {
+			select {
+			case sub := <-pc.SubscriberChan:
+				pc.logger.V(1).Info("Dispatching events", "subscriber", sub)
+				dispatch := func(pod *events.PodResource) {
+					// Check if the pod is related to the subscriber.
+					if _, ok := pod.Nodes[sub]; ok {
+						pc.Sink <- pod.ToEvent(events.Added, []string{sub})
+					}
+				}
+				pc.Cache.ForEach(dispatch)
+
+			case <-ctx.Done():
+				pc.logger.V(5).Info("Stopping dispatcher on new subscribers")
+				wg.Done()
+				return
+			}
+		}
+	}
+
+	pc.logger.Info("Starting event dispatcher for new subscribers")
+	// Start the dispatcher.
+	go dispatchEventsOnSubcribe(ctx)
+
+	// Wait for shutdown signal.
+	<-ctx.Done()
+	pc.logger.Info("Waiting for event dispatcher to finish")
+	// Wait for goroutines to stop.
+	wg.Wait()
+	pc.logger.Info("Dispatcher finished")
+
+	return nil
+}
+
 // initMetrics initializes the custom metrics for the pod collector.
 func (pc *PodCollector) initMetrics() {
 	eventTotal.WithLabelValues(pc.Name, labelAdded).Add(0)
@@ -332,6 +378,8 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 
 		return false
 	}
+	// Set the generic logger to be used in other function then the reconcile loop.
+	pc.logger = mgr.GetLogger().WithName(pc.Name)
 
 	lc, err := newLogConstructor(mgr.GetLogger(), pc.Name, resource.Pod)
 	if err != nil {
