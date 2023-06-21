@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/alacuku/k8s-metadata/broker"
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
 	"github.com/alacuku/k8s-metadata/internal/resource"
@@ -40,8 +41,7 @@ import (
 // events when such resources change over time.
 type DaemonsetCollector struct {
 	client.Client
-	Sink           chan<- events.Event
-	ChannelMetrics *ChannelMetrics
+	Queue          broker.Queue
 	Cache          events.GenericCache
 	GenericSource  source.Source
 	Name           string
@@ -133,8 +133,7 @@ func (r *DaemonsetCollector) Reconcile(ctx context.Context, req ctrl.Request) (c
 			r.Cache.Delete(req.String())
 		}
 		// Add event to the queue.
-		r.ChannelMetrics.Send(evt)
-		r.Sink <- evt
+		r.Queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -156,7 +155,7 @@ func (r *DaemonsetCollector) Start(ctx context.Context) error {
 				dispatch := func(res *events.GenericResource) {
 					// Check if the pod is related to the subscriber.
 					if _, ok := res.Nodes[sub]; ok {
-						r.Sink <- res.ToEvent(events.Added, []string{sub})
+						r.Queue.Push(res.ToEvent(events.Added, []string{sub}))
 					}
 				}
 				r.Cache.ForEach(dispatch)
@@ -181,32 +180,6 @@ func (r *DaemonsetCollector) Start(ctx context.Context) error {
 	r.logger.Info("Dispatcher finished")
 
 	return nil
-}
-
-// TriggerEventsForSubscriber it listens for new subscribers and sends the cached events to the
-// subscriber received on the channel. It returns a channel, used to stop the go routine.
-func (r *DaemonsetCollector) TriggerEventsForSubscriber(subs <-chan string) chan bool {
-	done := make(chan bool)
-
-	go func() {
-		for {
-			select {
-			case subs := <-subs:
-				dispatch := func(res *events.GenericResource) {
-					// Check if the resources is related to the subscriber.
-					if _, ok := res.Nodes[subs]; ok {
-						r.Sink <- res.ToEvent(events.Added, []string{subs})
-					}
-				}
-				r.Cache.ForEach(dispatch)
-
-			case <-done:
-				return
-			}
-		}
-	}()
-
-	return done
 }
 
 func (r *DaemonsetCollector) initMetrics() {

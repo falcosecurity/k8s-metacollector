@@ -117,7 +117,6 @@ func main() {
 	}
 
 	eventsChan := make(chan events.Event, 1)
-	cm := collectors.NewChannelMetrics()
 
 	// Create source for deployments.
 	dpl := make(chan event.GenericEvent, 1)
@@ -154,13 +153,14 @@ func main() {
 	serviceSource := &source.Channel{Source: svc}
 
 	podChanTrig := make(chan string)
+
+	queue := broker.NewBlockingChannel(1)
 	podCollector := &collectors.PodCollector{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		Cache:           events.NewPodCache(),
 		Name:            "pod-collector",
-		Sink:            eventsChan,
-		ChannelMetrics:  cm,
+		Queue:           queue,
 		ExternalSources: externalSrc,
 		EndpointsSource: podSource,
 		SubscriberChan:  podChanTrig,
@@ -176,8 +176,7 @@ func main() {
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "deployment-collector",
-		Sink:           eventsChan,
-		ChannelMetrics: cm,
+		Queue:          queue,
 		GenericSource:  deploymentSource,
 		SubscriberChan: dplChanTrig,
 	}
@@ -192,8 +191,7 @@ func main() {
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "replicaset-collector",
-		Sink:           eventsChan,
-		ChannelMetrics: cm,
+		Queue:          queue,
 		GenericSource:  replicasetSource,
 		SubscriberChan: rsChanTrig,
 	}
@@ -208,8 +206,7 @@ func main() {
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "namespace-collector",
-		Sink:           eventsChan,
-		ChannelMetrics: cm,
+		Queue:          queue,
 		GenericSource:  namespaceSource,
 		SubscriberChan: nsChanTrig,
 	}
@@ -219,16 +216,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	dsChanTrig := make(chan string)
 	dsCollector := &collectors.DaemonsetCollector{
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "daemonset-collector",
-		Sink:           eventsChan,
-		ChannelMetrics: cm,
+		Queue:          queue,
 		GenericSource:  daemonsetSource,
+		SubscriberChan: dsChanTrig,
 	}
-	dsChanTrig := make(chan string)
-	dsCollector.TriggerEventsForSubscriber(dsChanTrig)
+
 	if err = dsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Daemonset)
 		os.Exit(1)
@@ -239,8 +236,7 @@ func main() {
 		Client:         mgr.GetClient(),
 		Cache:          events.NewGenericCache(),
 		Name:           "replicationcontroller-collector",
-		Sink:           eventsChan,
-		ChannelMetrics: cm,
+		Queue:          queue,
 		GenericSource:  rcSource,
 		SubscriberChan: rcChanTrig,
 	}
@@ -255,8 +251,7 @@ func main() {
 		Client:          mgr.GetClient(),
 		Cache:           events.NewGenericCache(),
 		Name:            "service-collector",
-		Sink:            eventsChan,
-		ChannelMetrics:  cm,
+		Queue:           queue,
 		EndpointsSource: serviceSource,
 		SubscriberChan:  svcChanTrig,
 	}
@@ -270,7 +265,6 @@ func main() {
 		Client:                 mgr.GetClient(),
 		Name:                   "endpoint-dispatcher",
 		Sink:                   eventsChan,
-		ChannelMetrics:         cm,
 		ServiceCollectorSource: svc,
 		PodCollectorSource:     pd,
 		Pods:                   make(map[string]map[string]struct{}),
@@ -283,7 +277,6 @@ func main() {
 		Client:                 mgr.GetClient(),
 		Name:                   "endpointslices-dispatcher",
 		Sink:                   eventsChan,
-		ChannelMetrics:         cm,
 		ServiceCollectorSource: svc,
 		PodCollectorSource:     pd,
 		Pods:                   make(map[string]map[string]struct{}),
@@ -292,7 +285,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	br, err := broker.New(ctrl.Log.WithName("broker"), eventsChan, map[string]chan<- string{
+	br, err := broker.New(ctrl.Log.WithName("broker"), queue, map[string]chan<- string{
 		resource.Pod:                   podChanTrig,
 		resource.Deployment:            dplChanTrig,
 		resource.ReplicaSet:            rsChanTrig,

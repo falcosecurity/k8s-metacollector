@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/alacuku/k8s-metadata/broker"
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
 	"github.com/alacuku/k8s-metadata/internal/resource"
@@ -45,8 +46,7 @@ import (
 type PodCollector struct {
 	client.Client
 	Scheme          *runtime.Scheme
-	Sink            chan<- events.Event
-	ChannelMetrics  *ChannelMetrics
+	Queue           broker.Queue
 	Cache           events.PodCache
 	Refs            references
 	ExternalSources map[string]chan<- event2.GenericEvent
@@ -150,8 +150,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			pc.Cache.Delete(req.String())
 		}
 		// Add event to the queue.
-		pc.ChannelMetrics.Send(evt)
-		pc.Sink <- evt
+		pc.Queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -327,7 +326,7 @@ func (pc *PodCollector) Start(ctx context.Context) error {
 				dispatch := func(pod *events.PodResource) {
 					// Check if the pod is related to the subscriber.
 					if _, ok := pod.Nodes[sub]; ok {
-						pc.Sink <- pod.ToEvent(events.Added, []string{sub})
+						pc.Queue.Push(pod.ToEvent(events.Added, []string{sub}))
 					}
 				}
 				pc.Cache.ForEach(dispatch)

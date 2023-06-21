@@ -23,13 +23,12 @@ import (
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
 
-	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/metadata"
 )
 
 // Broker receives events from the collectors and sends them to the subscribers.
 type Broker struct {
-	queue         <-chan events.Event
+	queue         Queue
 	subscribers   *sync.Map
 	logger        logr.Logger
 	server        *grpc.Server
@@ -37,7 +36,7 @@ type Broker struct {
 }
 
 // New returns a new Broker.
-func New(logger logr.Logger, queue <-chan events.Event, collectors map[string]chan<- string) (*Broker, error) {
+func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string) (*Broker, error) {
 	subs := &sync.Map{}
 	group := &sync.WaitGroup{}
 	grpcServer := grpc.NewServer()
@@ -67,10 +66,16 @@ func (br *Broker) Start(ctx context.Context) error {
 	go func() {
 		serverError <- br.server.Serve(lis)
 	}()
+	go func() {
+		for {
+			evt := br.queue.Pop(ctx)
 
-	for {
-		select {
-		case evt := <-br.queue:
+			if evt == nil {
+				break
+			}
+
+			br.logger.V(7).Info("received event", "event:", evt.String())
+
 			for _, node := range evt.Nodes() {
 				// Get the grpc stream for the subscriber.
 				c, ok := br.subscribers.Load(node)
@@ -99,17 +104,20 @@ func (br *Broker) Start(ctx context.Context) error {
 					con.Error <- err
 				}
 			}
-			// Wait for the context to be canceled. In that case we gracefully stop the broker.
-		case <-ctx.Done():
-			br.logger.Info("Shutdown signal received, waiting for grpc connections to close")
-			br.server.Stop()
-			br.connectionsWg.Wait()
-			br.logger.Info("All grpc connections closed")
-			return nil
-		// If the grpc server errors, the error is returned and the manager is stopped causing the application to exit.
-		case err := <-serverError:
-			br.logger.Error(err, "grpc server failed to start")
-			return err
 		}
+	}()
+
+	select {
+	// Wait for the context to be canceled. In that case we gracefully stop the broker.
+	case <-ctx.Done():
+		br.logger.Info("Shutdown signal received, waiting for grpc connections to close")
+		br.server.Stop()
+		br.connectionsWg.Wait()
+		br.logger.Info("All grpc connections closed")
+		return nil
+	// If the grpc server errors, the error is returned and the manager is stopped causing the application to exit.
+	case err := <-serverError:
+		br.logger.Error(err, "grpc server failed to start")
+		return err
 	}
 }
