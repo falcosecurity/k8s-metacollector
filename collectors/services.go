@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/alacuku/k8s-metadata/broker"
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
 	"github.com/alacuku/k8s-metadata/internal/resource"
@@ -39,8 +40,7 @@ import (
 // events when such resources change over time.
 type ServiceCollector struct {
 	client.Client
-	Sink            chan<- events.Event
-	ChannelMetrics  *ChannelMetrics
+	Queue           broker.Queue
 	Cache           events.GenericCache
 	EndpointsSource source.Source
 	Name            string
@@ -132,8 +132,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			r.Cache.Delete(req.String())
 		}
 		// Add event to the queue.
-		r.ChannelMetrics.Send(evt)
-		r.Sink <- evt
+		r.Queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -155,7 +154,7 @@ func (r *ServiceCollector) Start(ctx context.Context) error {
 				dispatch := func(res *events.GenericResource) {
 					// Check if the pod is related to the subscriber.
 					if _, ok := res.Nodes[sub]; ok {
-						r.Sink <- res.ToEvent(events.Added, []string{sub})
+						r.Queue.Push(res.ToEvent(events.Added, []string{sub}))
 					}
 				}
 				r.Cache.ForEach(dispatch)

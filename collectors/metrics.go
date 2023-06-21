@@ -47,19 +47,6 @@ var (
 		Help: "Total number of events per collector",
 	}, []string{"collector", "type"})
 
-	// EventLatency is a prometheus metric which keeps track of the duration
-	// of sending events from collectors to the message broker.
-	EventLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "event_latency",
-		Help:    "How long in seconds an event stays in the channel before being requested.",
-		Buckets: prometheus.ExponentialBuckets(10e-9, 10, 10),
-	}, []string{"event"})
-
-	eventSent = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "event_sent_total",
-		Help: "Total number of events sent to message broker",
-	}, []string{"event"})
-
 	// eventReceived is a prometheus counter metrics which holds the total
 	// number of events received from the api server per collector. It has three labels. Collector label refers
 	// to the collector name, source refers to the source from where we are receiving the events,
@@ -73,8 +60,6 @@ var (
 func init() {
 	// Register custom metrics with the global prometheus registry
 	metrics.Registry.MustRegister(eventTotal)
-	metrics.Registry.MustRegister(EventLatency)
-	metrics.Registry.MustRegister(eventSent)
 	metrics.Registry.MustRegister(eventReceived)
 }
 
@@ -87,44 +72,6 @@ type ChannelMetrics struct {
 	latency *prometheus.HistogramVec
 
 	sentTimes map[interface{}]time.Time
-}
-
-// NewChannelMetrics returns a new ChannelMetrics ready to be used.
-func NewChannelMetrics() *ChannelMetrics {
-	eventSent.WithLabelValues(labelChannel).Add(0)
-	return &ChannelMetrics{
-		sents:     eventSent,
-		latency:   EventLatency,
-		sentTimes: make(map[interface{}]time.Time),
-	}
-}
-
-// Send to be called before sending an item to the given channel.
-func (cm *ChannelMetrics) Send(evt interface{}) {
-	if cm == nil {
-		return
-	}
-	cm.lock.Lock()
-	defer cm.lock.Unlock()
-	cm.sents.WithLabelValues(labelChannel).Inc()
-
-	if _, ok := cm.sentTimes[evt]; !ok {
-		cm.sentTimes[evt] = time.Now()
-	}
-}
-
-// Receive to be called after the item has been received on the given channel.
-func (cm *ChannelMetrics) Receive(evt interface{}) {
-	if cm == nil {
-		return
-	}
-	cm.lock.Lock()
-	defer cm.lock.Unlock()
-
-	if startTime, ok := cm.sentTimes[evt]; ok {
-		cm.latency.WithLabelValues(labelChannel).Observe(time.Since(startTime).Seconds())
-		delete(cm.sentTimes, evt)
-	}
 }
 
 // predicatesWithMetrics tracks the number of events received from the api-server.

@@ -34,8 +34,7 @@ import (
 // EndpointslicesDispatcher each time an endpoint changes it triggers a reconcile for the pods and services to which it relates.
 type EndpointslicesDispatcher struct {
 	client.Client
-	Sink           chan<- events.Event
-	ChannelMetrics *ChannelMetrics
+	Sink chan<- events.Event
 	// For each endpoint we save the pods' names that belong to it.
 	Pods                   map[string]map[string]struct{}
 	PodCollectorSource     chan<- event.GenericEvent

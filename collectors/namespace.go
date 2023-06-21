@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/alacuku/k8s-metadata/broker"
 	"github.com/alacuku/k8s-metadata/internal/events"
 	"github.com/alacuku/k8s-metadata/internal/fields"
 	"github.com/alacuku/k8s-metadata/internal/resource"
@@ -39,8 +40,7 @@ import (
 // events when such resources change over time.
 type NamespaceCollector struct {
 	client.Client
-	Sink           chan<- events.Event
-	ChannelMetrics *ChannelMetrics
+	Queue          broker.Queue
 	Cache          events.GenericCache
 	GenericSource  source.Source
 	Name           string
@@ -132,8 +132,7 @@ func (nc *NamespaceCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 			nc.Cache.Delete(req.String())
 		}
 		// Add event to the queue.
-		nc.ChannelMetrics.Send(evt)
-		nc.Sink <- evt
+		nc.Queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -155,7 +154,7 @@ func (nc *NamespaceCollector) Start(ctx context.Context) error {
 				dispatch := func(res *events.GenericResource) {
 					// Check if the pod is related to the subscriber.
 					if _, ok := res.Nodes[sub]; ok {
-						nc.Sink <- res.ToEvent(events.Added, []string{sub})
+						nc.Queue.Push(res.ToEvent(events.Added, []string{sub}))
 					}
 				}
 				nc.Cache.ForEach(dispatch)
