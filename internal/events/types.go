@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/alacuku/k8s-metadata/internal/fields"
+	"github.com/alacuku/k8s-metadata/metadata"
 )
 
 // GenericResource event that holds metadata fields for k8s resources.
@@ -120,27 +121,44 @@ func (g *GenericResource) SetNodes(nodes fields.Nodes) {
 // ToEvents returns a slice containing Event based on the internal state of the GenericResource.
 func (g *GenericResource) ToEvents() []Event {
 	evts := make([]Event, 3)
+	resMeta := g.Metadata.DeepCopy()
+	grpcMeta := &metadata.Fields{
+		Uid:       string(resMeta.UID()),
+		Kind:      resMeta.Kind(),
+		Name:      resMeta.Name(),
+		Namespace: resMeta.Namespace(),
+		Labels:    resMeta.Labels(),
+	}
 
 	if len(g.AddedFor) != 0 {
 		evts[0] = &GenericEvent{
-			Reason:           Added,
-			Metadata:         g.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Added,
+				Metadata: grpcMeta,
+				Refs:     nil,
+			},
 			DestinationNodes: g.AddedFor,
 		}
 	}
 
 	if len(g.ModifiedFor) != 0 {
 		evts[1] = &GenericEvent{
-			Reason:           Modified,
-			Metadata:         g.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Modified,
+				Metadata: grpcMeta,
+				Refs:     nil,
+			},
 			DestinationNodes: g.ModifiedFor,
 		}
 	}
 
 	if len(g.DeletedFor) != 0 {
 		evts[2] = &GenericEvent{
-			Reason:           Deleted,
-			Metadata:         g.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Deleted,
+				Metadata: grpcMeta,
+				Refs:     nil,
+			},
 			DestinationNodes: g.DeletedFor,
 		}
 	}
@@ -151,23 +169,43 @@ func (g *GenericResource) ToEvents() []Event {
 // ToEvent returns an event based on the reason for the specified nodes.
 func (g *GenericResource) ToEvent(reason string, nodes []string) Event {
 	var evt *GenericEvent
+
+	resMeta := g.Metadata.DeepCopy()
+
+	grpcMeta := &metadata.Fields{
+		Uid:       string(resMeta.UID()),
+		Kind:      resMeta.Kind(),
+		Name:      resMeta.Name(),
+		Namespace: resMeta.Namespace(),
+		Labels:    resMeta.Labels(),
+	}
+
 	switch reason {
 	case Added:
 		evt = &GenericEvent{
-			Reason:           Added,
-			Metadata:         g.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Added,
+				Metadata: grpcMeta,
+				Refs:     nil,
+			},
 			DestinationNodes: nodes,
 		}
 	case Modified:
 		evt = &GenericEvent{
-			Reason:           Modified,
-			Metadata:         g.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Modified,
+				Metadata: grpcMeta,
+				Refs:     nil,
+			},
 			DestinationNodes: nodes,
 		}
 	case Deleted:
 		evt = &GenericEvent{
-			Reason:           Deleted,
-			Metadata:         g.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Deleted,
+				Metadata: grpcMeta,
+				Refs:     nil,
+			},
 			DestinationNodes: nodes,
 		}
 	default:
@@ -234,31 +272,52 @@ func (p *PodResource) AddReferencesForKind(kind string, refs []fields.Reference)
 // ToEvents returns a slice containing Event based on the internal state of the PodResource.
 func (p *PodResource) ToEvents() []Event {
 	evts := make([]Event, 3)
+	resMeta := p.Metadata.DeepCopy()
+	grpcMeta := &metadata.Fields{
+		Uid:       string(resMeta.UID()),
+		Kind:      resMeta.Kind(),
+		Name:      resMeta.Name(),
+		Namespace: resMeta.Namespace(),
+		Labels:    resMeta.Labels(),
+	}
+
+	// Converting the references to grpc message format.
+	grpcRefs := make(map[string]*metadata.ListOfStrings, len(p.ResourceReferences))
+	refs := p.ResourceReferences.ToFlatMap()
+	for k, val := range refs {
+		grpcRefs[k] = &metadata.ListOfStrings{List: val}
+	}
 
 	if len(p.AddedFor) != 0 {
 		evts[0] = &GenericEvent{
-			Reason:           Added,
-			Metadata:         p.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Added,
+				Metadata: grpcMeta,
+				Refs:     &metadata.References{Refs: grpcRefs},
+			},
 			DestinationNodes: p.AddedFor,
-			References:       p.ResourceReferences.ToFlatMap(),
 		}
 	}
 
 	if len(p.ModifiedFor) != 0 {
 		evts[1] = &GenericEvent{
-			Reason:           Modified,
-			Metadata:         p.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Modified,
+				Metadata: grpcMeta,
+				Refs:     &metadata.References{Refs: grpcRefs},
+			},
 			DestinationNodes: p.ModifiedFor,
-			References:       p.ResourceReferences.ToFlatMap(),
 		}
 	}
 
 	if len(p.DeletedFor) != 0 {
 		evts[2] = &GenericEvent{
-			Reason:           Deleted,
-			Metadata:         p.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Deleted,
+				Metadata: grpcMeta,
+				Refs:     &metadata.References{Refs: grpcRefs},
+			},
 			DestinationNodes: p.DeletedFor,
-			References:       p.ResourceReferences.ToFlatMap(),
 		}
 	}
 
@@ -268,27 +327,49 @@ func (p *PodResource) ToEvents() []Event {
 // ToEvent returns an event based on the reason for the specified nodes.
 func (p *PodResource) ToEvent(reason string, nodes []string) Event {
 	var evt *GenericEvent
+	resMeta := p.Metadata.DeepCopy()
+	grpcMeta := &metadata.Fields{
+		Uid:       string(resMeta.UID()),
+		Kind:      resMeta.Kind(),
+		Name:      resMeta.Name(),
+		Namespace: resMeta.Namespace(),
+		Labels:    resMeta.Labels(),
+	}
+
+	// Converting the references to grpc message format.
+	grpcRefs := make(map[string]*metadata.ListOfStrings, len(p.ResourceReferences))
+	refs := p.ResourceReferences.ToFlatMap()
+	for k, val := range refs {
+		grpcRefs[k] = &metadata.ListOfStrings{List: val}
+	}
+
 	switch reason {
 	case Added:
 		evt = &GenericEvent{
-			Reason:           Added,
-			Metadata:         p.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Added,
+				Metadata: grpcMeta,
+				Refs:     &metadata.References{Refs: grpcRefs},
+			},
 			DestinationNodes: nodes,
-			References:       p.ResourceReferences.ToFlatMap(),
 		}
 	case Modified:
 		evt = &GenericEvent{
-			Reason:           Modified,
-			Metadata:         p.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Modified,
+				Metadata: grpcMeta,
+				Refs:     &metadata.References{Refs: grpcRefs},
+			},
 			DestinationNodes: nodes,
-			References:       p.ResourceReferences.ToFlatMap(),
 		}
 	case Deleted:
 		evt = &GenericEvent{
-			Reason:           Deleted,
-			Metadata:         p.Metadata.DeepCopy(),
+			Event: &metadata.Event{
+				Reason:   Deleted,
+				Metadata: grpcMeta,
+				Refs:     &metadata.References{Refs: grpcRefs},
+			},
 			DestinationNodes: nodes,
-			References:       p.ResourceReferences.ToFlatMap(),
 		}
 	default:
 		evt = &GenericEvent{}
