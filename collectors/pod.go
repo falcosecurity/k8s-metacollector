@@ -16,7 +16,6 @@ package collectors
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -314,43 +313,7 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.GenericResource) 
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (pc *PodCollector) Start(ctx context.Context) error {
-	wg := sync.WaitGroup{}
-	// it listens for new subscribers and sends the cached events to the
-	// subscriber received on the channel.
-	dispatchEventsOnSubcribe := func(ctx context.Context) {
-		wg.Add(1)
-		for {
-			select {
-			case sub := <-pc.SubscriberChan:
-				pc.logger.V(1).Info("Dispatching events", "subscriber", sub)
-				dispatch := func(pod *events.GenericResource) {
-					// Check if the pod is related to the subscriber.
-					if _, ok := pod.Nodes[sub]; ok {
-						pc.Queue.Push(pod.ToEvent(events.Added, []string{sub}))
-					}
-				}
-				pc.Cache.ForEach(dispatch)
-
-			case <-ctx.Done():
-				pc.logger.V(5).Info("Stopping dispatcher on new subscribers")
-				wg.Done()
-				return
-			}
-		}
-	}
-
-	pc.logger.Info("Starting event dispatcher for new subscribers")
-	// Start the dispatcher.
-	go dispatchEventsOnSubcribe(ctx)
-
-	// Wait for shutdown signal.
-	<-ctx.Done()
-	pc.logger.Info("Waiting for event dispatcher to finish")
-	// Wait for goroutines to stop.
-	wg.Wait()
-	pc.logger.Info("Dispatcher finished")
-
-	return nil
+	return dispatch(ctx, pc.logger, pc.SubscriberChan, pc.Queue, &pc.Cache)
 }
 
 // initMetrics initializes the custom metrics for the pod collector.

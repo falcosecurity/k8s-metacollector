@@ -16,7 +16,6 @@ package collectors
 
 import (
 	"context"
-	"sync"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -142,44 +141,9 @@ func (nc *NamespaceCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (nc *NamespaceCollector) Start(ctx context.Context) error {
-	wg := sync.WaitGroup{}
-	// it listens for new subscribers and sends the cached events to the
-	// subscriber received on the channel.
-	dispatchEventsOnSubcribe := func(ctx context.Context) {
-		wg.Add(1)
-		for {
-			select {
-			case sub := <-nc.SubscriberChan:
-				nc.logger.V(5).Info("Dispatching events", "subscriber", sub)
-				dispatch := func(res *events.GenericResource) {
-					// Check if the pod is related to the subscriber.
-					if _, ok := res.Nodes[sub]; ok {
-						nc.Queue.Push(res.ToEvent(events.Added, []string{sub}))
-					}
-				}
-				nc.Cache.ForEach(dispatch)
-
-			case <-ctx.Done():
-				nc.logger.V(5).Info("Stopping dispatcher on new subscribers")
-				wg.Done()
-				return
-			}
-		}
-	}
-
-	nc.logger.Info("Starting event dispatcher for new subscribers")
-	// Start the dispatcher.
-	go dispatchEventsOnSubcribe(ctx)
-
-	// Wait for shutdown signal.
-	<-ctx.Done()
-	nc.logger.Info("Waiting for event dispatcher to finish")
-	// Wait for goroutines to stop.
-	wg.Wait()
-	nc.logger.Info("Dispatcher finished")
-
-	return nil
+	return dispatch(ctx, nc.logger, nc.SubscriberChan, nc.Queue, &nc.Cache)
 }
+
 func (nc *NamespaceCollector) initMetrics() {
 	eventTotal.WithLabelValues(nc.Name, labelAdded).Add(0)
 	eventTotal.WithLabelValues(nc.Name, labelUpdated).Add(0)
