@@ -47,7 +47,7 @@ type PodCollector struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	Queue           broker.Queue
-	Cache           events.PodCache
+	Cache           events.GenericCache
 	Refs            references
 	ExternalSources map[string]chan<- event2.GenericEvent
 	EndpointsSource source.Source
@@ -63,7 +63,7 @@ type PodCollector struct {
 // Reconcile generates events to be sent to nodes when changes are detected for the watched resources.
 func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var pod corev1.Pod
-	var pRes *events.PodResource
+	var pRes *events.GenericResource
 	var err error
 	var ok, podDeleted, ownerRefs, svcRefs, updated bool
 
@@ -93,7 +93,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if pRes, ok = pc.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logReq.V(3).Info("never met this resource in my life")
-		pRes = events.NewPodResourceFromMetadata(&pod.ObjectMeta)
+		pRes = events.NewGenericResourceFromMetadata(&pod.ObjectMeta, resource.Pod)
 		if _, err = pc.NamespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -158,7 +158,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 // OwnerRefsHandler extracts the owner references for a given pod and updates the related event.
 // It takes in account only references for the owners that are also controllers of the pod resource.
-func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger, evt *events.PodResource, pod *corev1.Pod) (bool, error) {
+func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) (bool, error) {
 	if pod == nil {
 		return false, nil
 	}
@@ -204,7 +204,7 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 }
 
 // ServiceRefsHandler get the UID of each service serving the given pod and update the related event.
-func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.PodResource, pod *corev1.Pod) (bool, error) {
+func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) (bool, error) {
 	if pod == nil {
 		return false, nil
 	}
@@ -239,7 +239,7 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 }
 
 // NamespaceRefsHandler get the UID of the namespace of the given pod and update the related event.
-func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.PodResource, pod *corev1.Pod) (bool, error) {
+func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) (bool, error) {
 	if pod == nil {
 		return false, nil
 	}
@@ -262,7 +262,7 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 	}}), nil
 }
 
-func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.PodResource) {
+func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.GenericResource) {
 	for kind, refs := range evt.ResourceReferences {
 		ch, ok := pc.ExternalSources[kind]
 		if !ok {
@@ -289,7 +289,7 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.PodResource) {
 	}
 }
 
-func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.PodResource) {
+func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.GenericResource) {
 	for kind, refs := range evt.ResourceReferences {
 		ch, ok := pc.ExternalSources[kind]
 		if !ok {
@@ -323,7 +323,7 @@ func (pc *PodCollector) Start(ctx context.Context) error {
 			select {
 			case sub := <-pc.SubscriberChan:
 				pc.logger.V(1).Info("Dispatching events", "subscriber", sub)
-				dispatch := func(pod *events.PodResource) {
+				dispatch := func(pod *events.GenericResource) {
 					// Check if the pod is related to the subscriber.
 					if _, ok := pod.Nodes[sub]; ok {
 						pc.Queue.Push(pod.ToEvent(events.Added, []string{sub}))

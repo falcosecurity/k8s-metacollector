@@ -158,7 +158,7 @@ func main() {
 	podCollector := &collectors.PodCollector{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
-		Cache:           events.NewPodCache(),
+		Cache:           events.NewGenericCache(),
 		Name:            "pod-collector",
 		Queue:           queue,
 		ExternalSources: externalSrc,
