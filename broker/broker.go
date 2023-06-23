@@ -89,18 +89,7 @@ func (br *Broker) Start(ctx context.Context) error {
 					break
 				}
 
-				meta := &metadata.Event{
-					Reason: evt.Type(),
-					Metadata: &metadata.Fields{
-						Uid:       string(evt.GetMetadata().UID()),
-						Kind:      evt.GetMetadata().Kind(),
-						Name:      evt.GetMetadata().Name(),
-						Namespace: evt.GetMetadata().Namespace(),
-						Labels:    evt.GetMetadata().Labels(),
-					},
-					Refs: &metadata.References{Refs: evt.Refs()},
-				}
-				if err := con.Stream.Send(meta); err != nil {
+				if err := con.Stream.Send(evt.GRPCMessage()); err != nil {
 					con.Error <- err
 				}
 			}

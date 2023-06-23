@@ -17,7 +17,6 @@ package events
 import (
 	"fmt"
 
-	"github.com/alacuku/k8s-metadata/internal/fields"
 	"github.com/alacuku/k8s-metadata/metadata"
 )
 
@@ -32,10 +31,8 @@ const (
 
 // GenericEvent generated for watched kubernetes resources.
 type GenericEvent struct {
-	Reason           string
-	Metadata         *fields.Metadata
+	*metadata.Event
 	DestinationNodes []string
-	References       map[string][]string
 }
 
 // Nodes returns the destination nodes.
@@ -46,7 +43,7 @@ func (ge *GenericEvent) Nodes() []string {
 // String returns the event in string format.
 func (ge *GenericEvent) String() string {
 	return fmt.Sprintf("Resource kind %q, event type %q, resource name %q, namespace %q, destination nodes %q",
-		ge.Metadata.Kind(), ge.Reason, ge.Metadata.Name(), ge.Metadata.Namespace(), ge.Nodes())
+		ge.Metadata.Kind, ge.Reason, ge.Metadata.Name, ge.Metadata.Namespace, ge.Nodes())
 }
 
 // Type returns the event type.
@@ -54,16 +51,7 @@ func (ge *GenericEvent) Type() string {
 	return ge.Reason
 }
 
-// GetMetadata returns the metadata.
-func (ge *GenericEvent) GetMetadata() *fields.Metadata {
-	return ge.Metadata
-}
-
-// Refs returns the references.
-func (ge *GenericEvent) Refs() map[string]*metadata.ListOfStrings {
-	tmp := make(map[string]*metadata.ListOfStrings, len(ge.References))
-	for k, val := range ge.References {
-		tmp[k] = &metadata.ListOfStrings{List: val}
-	}
-	return tmp
+// GRPCMessage returns the grpc message ready to be sent over the grpc connection.
+func (ge *GenericEvent) GRPCMessage() *metadata.Event {
+	return ge.Event
 }
