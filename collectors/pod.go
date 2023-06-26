@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,10 +43,8 @@ import (
 // events when such resources change over time.
 type PodCollector struct {
 	client.Client
-	Scheme          *runtime.Scheme
 	Queue           broker.Queue
 	Cache           events.GenericCache
-	Refs            references
 	ExternalSources map[string]chan<- event2.GenericEvent
 	EndpointsSource source.Source
 	Name            string
