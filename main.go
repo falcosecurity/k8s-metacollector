@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 
 	v1 "k8s.io/api/apps/v1"
@@ -53,11 +52,15 @@ func init() {
 func main() {
 	var metricsAddr string
 	var probeAddr string
-	var nodeName string
+	var brokerAddr string
+	var certFilePath string
+	var keyFilePath string
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&nodeName, "node-name", "",
-		"The node name where this controller instance runs. It is used to filter out pods not scheduled on the current node.")
+	flag.StringVar(&brokerAddr, "broker-bind-address", ":45000", "The address the broker endpoint binds to.")
+	flag.StringVar(&certFilePath, "broker-server-cert", "", "Cert file path for grpc server.")
+	flag.StringVar(&keyFilePath, "broker-server-key", "", "Key file path for grpc server.")
 
 	opts := zap.Options{
 		Development: false,
@@ -68,11 +71,6 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	setupLog := ctrl.Log.WithName("setup")
-	// Check node name has been set.
-	if nodeName == "" {
-		setupLog.Error(fmt.Errorf("can not be empty"), "please set a value for", "flag", "--node-name")
-		os.Exit(1)
-	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -286,7 +284,9 @@ func main() {
 		resource.Service:               svcChanTrig,
 		resource.Namespace:             nsChanTrig,
 		resource.ReplicationController: rcChanTrig,
-	})
+	},
+		broker.WithAddress(brokerAddr),
+		broker.WithTLS(certFilePath, keyFilePath))
 
 	if err != nil {
 		setupLog.Error(err, "unable to create the broker")

@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/alacuku/k8s-metadata/metadata"
 )
@@ -33,13 +34,37 @@ type Broker struct {
 	logger        logr.Logger
 	server        *grpc.Server
 	connectionsWg *sync.WaitGroup
+	opt           options
 }
 
 // New returns a new Broker.
-func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string) (*Broker, error) {
+func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string, opt ...Option) (*Broker, error) {
+	var grpcServer *grpc.Server
 	subs := &sync.Map{}
 	group := &sync.WaitGroup{}
-	grpcServer := grpc.NewServer()
+
+	// Apply options received from the flags.
+	opts := options{}
+	for _, o := range opt {
+		o(&opts)
+	}
+
+	// They should be both set, but here we prefer to return an error so the user knows that one of the paths
+	// is missing rather then explicitly validating the file paths.
+	if opts.tlsServerKeyFilePath != "" || opts.tlsServerCertFilePath != "" {
+		creds, err := credentials.NewServerTLSFromFile(opts.tlsServerCertFilePath, opts.tlsServerKeyFilePath)
+		if err != nil {
+			logger.Error(err, "unable to create credentials from provided files",
+				"certFilePath", opts.tlsServerCertFilePath, "keyFilePAth", opts.tlsServerKeyFilePath)
+			return nil, err
+		}
+
+		grpcServer = grpc.NewServer(grpc.Creds(creds))
+	} else {
+		grpcServer = grpc.NewServer()
+	}
+
+	// Register grpc server.
 	metadata.RegisterMetadataServer(grpcServer, metadata.New(logger.WithName("grpc-server"), subs, collectors, group))
 
 	return &Broker{
@@ -48,19 +73,18 @@ func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string) (
 		logger:        logger,
 		server:        grpcServer,
 		connectionsWg: group,
+		opt:           opts,
 	}, nil
 }
 
 // Start starts the grpc server and sends to subscribers the events received from the collectors.
 func (br *Broker) Start(ctx context.Context) error {
-	br.logger.Info("starting grpc server")
+	br.logger.Info("starting grpc server", "addr", br.opt.address)
 	// Start the grpc server.
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 45000))
+	lis, err := net.Listen("tcp", br.opt.address)
 	if err != nil {
 		return fmt.Errorf("an error occurred whil creating listener for grpc server: %w", err)
 	}
-
-	br.logger.Info("starting", "grpc", "server")
 
 	serverError := make(chan error)
 	go func() {
