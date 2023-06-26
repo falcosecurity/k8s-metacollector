@@ -15,9 +15,6 @@
 package collectors
 
 import (
-	"sync"
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -29,7 +26,6 @@ const (
 	labelAdded      = "added"
 	labelUpdated    = "modified"
 	labelDeleted    = "deleted"
-	labelChannel    = "pipeline"
 	labelCreate     = "Create"
 	labelUpdate     = "Update"
 	labelDelete     = "Delete"
@@ -61,17 +57,6 @@ func init() {
 	// Register custom metrics with the global prometheus registry
 	metrics.Registry.MustRegister(eventTotal)
 	metrics.Registry.MustRegister(eventReceived)
-}
-
-// ChannelMetrics holds the metrics related to the events sent in a given channel.
-type ChannelMetrics struct {
-	lock sync.Mutex
-	// Total number of events sent in the channel
-	sents *prometheus.CounterVec
-	// how long an item stays in the channel
-	latency *prometheus.HistogramVec
-
-	sentTimes map[interface{}]time.Time
 }
 
 // predicatesWithMetrics tracks the number of events received from the api-server.
