@@ -30,8 +30,8 @@ type GenericCache struct {
 // For example, a Deployment could have more than on pod running on the same node. So we need to track this,
 // and we do it keeping a map where for each GenericResource we keep a counter of how many related resources are living
 // in a given node.
-func NewGenericCache() GenericCache {
-	return GenericCache{
+func NewGenericCache() *GenericCache {
+	return &GenericCache{
 		resources: make(map[string]*GenericResource),
 		nodes:     make(map[string]map[string]uint),
 		rwLock:    sync.RWMutex{},

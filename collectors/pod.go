@@ -44,7 +44,7 @@ import (
 type PodCollector struct {
 	client.Client
 	Queue           broker.Queue
-	Cache           events.GenericCache
+	Cache           *events.GenericCache
 	ExternalSources map[string]chan<- event2.GenericEvent
 	EndpointsSource source.Source
 	Name            string
@@ -131,17 +131,17 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		switch evt.Type() {
 		case "Added":
 			// Perform actions for "Added" events.
-			eventTotal.WithLabelValues(pc.Name, labelAdded).Inc()
+			generatedEvents.WithLabelValues(pc.Name, labelCreate).Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
 			// Please keep in mind that Cache operations resets the state of the resource, such as
 			// resetting the info needed to generate the events.
 			pc.Cache.Add(req.String(), pRes)
 			pc.triggerOwnersOnCreateEvent(pRes)
 		case "Modified":
-			eventTotal.WithLabelValues(pc.Name, labelUpdated).Inc()
+			generatedEvents.WithLabelValues(pc.Name, labelUpdate).Inc()
 			pc.Cache.Update(req.String(), pRes)
 		case "Deleted":
-			eventTotal.WithLabelValues(pc.Name, labelDeleted).Inc()
+			generatedEvents.WithLabelValues(pc.Name, labelDelete).Inc()
 			pc.triggerOwnersOnDeleteEvent(pRes)
 			pc.Cache.Delete(req.String())
 		}
@@ -172,7 +172,7 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 		}})
 		// If we are handling a replicaset, then fetch it and check if it has an owner.
 		if owner.Kind == resource.ReplicaSet {
-			replicaset := newPartialReplicaset
+			replicaset := NewPartialObjectMetadata(resource.ReplicaSet, nil)
 			err := pc.Get(ctx, types.NamespacedName{
 				Namespace: pod.Namespace,
 				Name:      owner.Name,
@@ -241,7 +241,7 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 	}
 
 	// Get the pod's namespace.
-	namespace := newPartialNamespace
+	namespace := NewPartialObjectMetadata(resource.Namespace, nil)
 	nsKey := types.NamespacedName{
 		Namespace: "",
 		Name:      pod.Namespace,
@@ -269,12 +269,8 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.GenericResource) 
 			go func(name types.NamespacedName, kind string) {
 				var obj client.Object
 				switch kind {
-				case resource.Deployment:
-					obj = partialDeployment(&name)
-				case resource.ReplicaSet:
-					obj = partialReplicaset(&name)
-				case resource.Namespace:
-					obj = partialNamespace(&name)
+				case resource.Deployment, resource.ReplicaSet, resource.Namespace:
+					obj = NewPartialObjectMetadata(kind, &name)
 				}
 				if obj != nil {
 					time.Sleep(10 * time.Second)
@@ -296,7 +292,7 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.GenericResource) 
 			go func(name types.NamespacedName, kind string) {
 				var obj client.Object
 				if kind == resource.Namespace {
-					obj = partialNamespace(&name)
+					obj = NewPartialObjectMetadata(kind, &name)
 				}
 				if obj != nil {
 					ch <- event2.GenericEvent{Object: obj}
@@ -310,14 +306,14 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.GenericResource) 
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (pc *PodCollector) Start(ctx context.Context) error {
-	return dispatch(ctx, pc.logger, pc.SubscriberChan, pc.Queue, &pc.Cache)
+	return dispatch(ctx, pc.logger, pc.SubscriberChan, pc.Queue, pc.Cache)
 }
 
 // initMetrics initializes the custom metrics for the pod collector.
 func (pc *PodCollector) initMetrics() {
-	eventTotal.WithLabelValues(pc.Name, labelAdded).Add(0)
-	eventTotal.WithLabelValues(pc.Name, labelUpdated).Add(0)
-	eventTotal.WithLabelValues(pc.Name, labelDeleted).Add(0)
+	generatedEvents.WithLabelValues(pc.Name, labelCreate).Add(0)
+	generatedEvents.WithLabelValues(pc.Name, labelUpdate).Add(0)
+	generatedEvents.WithLabelValues(pc.Name, labelDelete).Add(0)
 }
 
 // SetupWithManager sets up the controller with the Manager.
