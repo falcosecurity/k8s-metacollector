@@ -40,7 +40,7 @@ import (
 type ServiceCollector struct {
 	client.Client
 	Queue           broker.Queue
-	Cache           events.GenericCache
+	Cache           *events.GenericCache
 	EndpointsSource source.Source
 	Name            string
 	SubscriberChan  <-chan string
@@ -116,18 +116,18 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		switch evt.Type() {
 		case events.Added:
 			// Perform actions for "Added" events.
-			eventTotal.WithLabelValues(r.Name, labelAdded).Inc()
+			generatedEvents.WithLabelValues(r.Name, labelCreate).Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
 			// Please keep in mind that Cache operations resets the state of the resource, such as
 			// resetting the info needed to generate the events.
 			r.Cache.Add(req.String(), sRes)
 		case events.Modified:
 			// Run specific code for "Modified" events.
-			eventTotal.WithLabelValues(r.Name, labelUpdated).Inc()
+			generatedEvents.WithLabelValues(r.Name, labelUpdate).Inc()
 			r.Cache.Update(req.String(), sRes)
 		case events.Deleted:
 			// Run specific code for "Deleted" events.
-			eventTotal.WithLabelValues(r.Name, labelDeleted).Inc()
+			generatedEvents.WithLabelValues(r.Name, labelDelete).Inc()
 			r.Cache.Delete(req.String())
 		}
 		// Add event to the queue.
@@ -141,13 +141,13 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (r *ServiceCollector) Start(ctx context.Context) error {
-	return dispatch(ctx, r.logger, r.SubscriberChan, r.Queue, &r.Cache)
+	return dispatch(ctx, r.logger, r.SubscriberChan, r.Queue, r.Cache)
 }
 
 func (r *ServiceCollector) initMetrics() {
-	eventTotal.WithLabelValues(r.Name, labelAdded).Add(0)
-	eventTotal.WithLabelValues(r.Name, labelUpdated).Add(0)
-	eventTotal.WithLabelValues(r.Name, labelDeleted).Add(0)
+	generatedEvents.WithLabelValues(r.Name, labelCreate).Add(0)
+	generatedEvents.WithLabelValues(r.Name, labelUpdate).Add(0)
+	generatedEvents.WithLabelValues(r.Name, labelDelete).Add(0)
 }
 
 // Nodes returns all the nodes where pods related to the current deployment are running.

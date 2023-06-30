@@ -82,15 +82,9 @@ func (r *EndpointslicesDispatcher) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *EndpointslicesDispatcher) initMetrics() {
-	eventTotal.WithLabelValues(r.Name, labelAdded).Add(0)
-	eventTotal.WithLabelValues(r.Name, labelUpdated).Add(0)
-	eventTotal.WithLabelValues(r.Name, labelDeleted).Add(0)
-}
-
 func (r *EndpointslicesDispatcher) triggerPods(namespace string, pods map[string]struct{}) {
 	for p := range pods {
-		obj := partialPod(&types.NamespacedName{
+		obj := NewPartialObjectMetadata(resource.Pod, &types.NamespacedName{
 			Namespace: namespace,
 			Name:      p,
 		})
@@ -101,7 +95,7 @@ func (r *EndpointslicesDispatcher) triggerPods(namespace string, pods map[string
 
 func (r *EndpointslicesDispatcher) triggerService(meta types.NamespacedName) {
 	// Endpoints name is the same as the one of the service to which refers.
-	obj := partialService(&meta)
+	obj := NewPartialObjectMetadata(resource.Service, &meta)
 
 	r.ServiceCollectorSource <- event.GenericEvent{Object: obj}
 }
@@ -144,8 +138,6 @@ func (r *EndpointslicesDispatcher) getPods(eps *discoveryv1.EndpointSlice, req *
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *EndpointslicesDispatcher) SetupWithManager(mgr ctrl.Manager) error {
-	r.initMetrics()
-
 	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.EndpointSlice)
 	if err != nil {
 		return err

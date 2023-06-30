@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -165,14 +166,15 @@ func main() {
 	}
 
 	dplChanTrig := make(chan string)
-	dplCollector := &collectors.DeploymentCollector{
-		Client:         mgr.GetClient(),
-		Cache:          events.NewGenericCache(),
-		Name:           "deployment-collector",
-		Queue:          queue,
-		GenericSource:  deploymentSource,
-		SubscriberChan: dplChanTrig,
-	}
+	dplCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+		collectors.NewPartialObjectMetadata(resource.Deployment, nil), "deployment-collector",
+		collectors.WithSubscribersChan(dplChanTrig),
+		collectors.WithExternalSource(deploymentSource),
+		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
+			return &client.MatchingFields{
+				"metadata.generateName": meta.Name,
+			}
+		}))
 
 	if err = dplCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Deployment)
@@ -180,14 +182,15 @@ func main() {
 	}
 
 	rsChanTrig := make(chan string)
-	rsCollector := &collectors.ReplicasetCollector{
-		Client:         mgr.GetClient(),
-		Cache:          events.NewGenericCache(),
-		Name:           "replicaset-collector",
-		Queue:          queue,
-		GenericSource:  replicasetSource,
-		SubscriberChan: rsChanTrig,
-	}
+	rsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+		collectors.NewPartialObjectMetadata(resource.ReplicaSet, nil), "replicaset-collector",
+		collectors.WithSubscribersChan(rsChanTrig),
+		collectors.WithExternalSource(replicasetSource),
+		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
+			return &client.MatchingFields{
+				"metadata.generateName": meta.Name + "-",
+			}
+		}))
 
 	if err = rsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.ReplicaSet)
@@ -195,14 +198,10 @@ func main() {
 	}
 
 	nsChanTrig := make(chan string)
-	nsCollector := &collectors.NamespaceCollector{
-		Client:         mgr.GetClient(),
-		Cache:          events.NewGenericCache(),
-		Name:           "namespace-collector",
-		Queue:          queue,
-		GenericSource:  namespaceSource,
-		SubscriberChan: nsChanTrig,
-	}
+	nsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+		collectors.NewPartialObjectMetadata(resource.Namespace, nil), "namespace-collector",
+		collectors.WithSubscribersChan(nsChanTrig),
+		collectors.WithExternalSource(namespaceSource))
 
 	if err = nsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Namespace)
@@ -210,14 +209,15 @@ func main() {
 	}
 
 	dsChanTrig := make(chan string)
-	dsCollector := &collectors.DaemonsetCollector{
-		Client:         mgr.GetClient(),
-		Cache:          events.NewGenericCache(),
-		Name:           "daemonset-collector",
-		Queue:          queue,
-		GenericSource:  daemonsetSource,
-		SubscriberChan: dsChanTrig,
-	}
+	dsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+		collectors.NewPartialObjectMetadata(resource.Daemonset, nil), "daemonset-collector",
+		collectors.WithSubscribersChan(dsChanTrig),
+		collectors.WithExternalSource(daemonsetSource),
+		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
+			return &client.MatchingFields{
+				"metadata.generateName": meta.Name + "-",
+			}
+		}))
 
 	if err = dsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Daemonset)
@@ -225,14 +225,15 @@ func main() {
 	}
 
 	rcChanTrig := make(chan string)
-	rcCollector := &collectors.ReplicationcontrollerCollector{
-		Client:         mgr.GetClient(),
-		Cache:          events.NewGenericCache(),
-		Name:           "replicationcontroller-collector",
-		Queue:          queue,
-		GenericSource:  rcSource,
-		SubscriberChan: rcChanTrig,
-	}
+	rcCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+		collectors.NewPartialObjectMetadata(resource.ReplicationController, nil), "replicationcontroller-collector",
+		collectors.WithSubscribersChan(rcChanTrig),
+		collectors.WithExternalSource(rcSource),
+		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
+			return &client.MatchingFields{
+				"metadata.generateName": meta.Name + "-",
+			}
+		}))
 
 	if err = rcCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.ReplicationController)
@@ -304,27 +305,27 @@ func main() {
 	}
 
 	if err = mgr.Add(dsCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dsCollector.Name)
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dsCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(nsCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", nsCollector.Name)
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", nsCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(dplCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dplCollector.Name)
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dplCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(rsCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rsCollector.Name)
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rsCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(rcCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rcCollector.Name)
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rcCollector.GetName())
 		os.Exit(1)
 	}
 
