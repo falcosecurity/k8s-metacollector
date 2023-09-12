@@ -15,6 +15,8 @@ RUN go mod download
 COPY main.go main.go
 COPY internal/ internal/
 COPY collectors/ collectors/
+COPY broker/ broker/
+COPY metadata/ metadata/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
