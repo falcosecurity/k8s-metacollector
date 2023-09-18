@@ -165,7 +165,7 @@ func (g *GenericResource) AddReferencesForKind(kind string, refs []fields.Refere
 func (g *GenericResource) ToEvents() []Event {
 	evts := make([]Event, 3)
 	resMeta := g.Metadata.DeepCopy()
-	grpcMeta := &metadata.Fields{
+	grpcMeta := &metadata.MetaFields{
 		Uid:       string(resMeta.UID()),
 		Kind:      resMeta.Kind(),
 		Name:      resMeta.Name(),
@@ -213,7 +213,7 @@ func (g *GenericResource) ToEvents() []Event {
 func (g *GenericResource) ToEvent(reason string, nodes []string) Event {
 	var evt *GenericEvent
 	resMeta := g.Metadata.DeepCopy()
-	grpcMeta := &metadata.Fields{
+	grpcMeta := &metadata.MetaFields{
 		Uid:       string(resMeta.UID()),
 		Kind:      resMeta.Kind(),
 		Name:      resMeta.Name(),

@@ -31,7 +31,7 @@ message ListOfStrings {
 }
 
 // Fields sent for each resource.
-message Fields {
+message MetaFields {
   string uid = 1;
   string kind = 2;
   string name = 3;
@@ -39,10 +39,20 @@ message Fields {
   map<string, string> labels = 5;
 }
 
+message SpecFields {
+  map<string, string> fields = 1;
+}
+
+message StatusFields{
+  map<string, string> fields = 1;
+}
+
 // An Event is received in response to a Watch rpc.
 // It contains the metadata for a given resource.
 message Event {
   string reason = 1;
-  Fields metadata =2;
-  optional References refs = 3;
+  MetaFields metadata = 2;
+  optional SpecFields spec = 3;
+  optional StatusFields status = 4;
+  optional References refs = 5;
 }
