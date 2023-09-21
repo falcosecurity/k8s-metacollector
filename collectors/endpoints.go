@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/alacuku/k8s-metadata/internal/resource"
+	"github.com/alacuku/k8s-metadata/pkg/resource"
 )
 
 // EndpointsDispatcher each time an endpoint changes it triggers a reconcile for the pods and services to which it relates.

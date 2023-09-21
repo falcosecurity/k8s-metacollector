@@ -17,7 +17,7 @@ package broker
 import (
 	"context"
 
-	"github.com/alacuku/k8s-metadata/internal/events"
+	"github.com/alacuku/k8s-metadata/pkg/events"
 )
 
 // BlockingChannel implements the Queue interface using a channel.

@@ -17,9 +17,9 @@ package events
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/alacuku/k8s-metadata/internal/fields"
-	"github.com/alacuku/k8s-metadata/internal/resource"
 	"github.com/alacuku/k8s-metadata/metadata"
+	"github.com/alacuku/k8s-metadata/pkg/fields"
+	"github.com/alacuku/k8s-metadata/pkg/resource"
 )
 
 // GenericResource event that holds metadata fields for k8s resources.
