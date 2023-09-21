@@ -21,7 +21,7 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/alacuku/k8s-metadata/broker"
-	"github.com/alacuku/k8s-metadata/internal/events"
+	"github.com/alacuku/k8s-metadata/pkg/events"
 )
 
 // Dispatch starts a go routing which waits for subscribers and dispatches the events to them. Events

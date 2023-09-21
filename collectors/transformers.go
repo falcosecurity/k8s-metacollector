@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	toolscache "k8s.io/client-go/tools/cache"
 
-	"github.com/alacuku/k8s-metadata/internal/resource"
+	"github.com/alacuku/k8s-metadata/pkg/resource"
 )
 
 // PodTransformer transforms the pod objects received from the api-server

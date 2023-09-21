@@ -34,9 +34,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/alacuku/k8s-metadata/broker"
-	"github.com/alacuku/k8s-metadata/internal/events"
-	"github.com/alacuku/k8s-metadata/internal/fields"
-	"github.com/alacuku/k8s-metadata/internal/resource"
+	"github.com/alacuku/k8s-metadata/pkg/events"
+	"github.com/alacuku/k8s-metadata/pkg/fields"
+	"github.com/alacuku/k8s-metadata/pkg/resource"
 )
 
 // PodCollector collects pods' metadata, puts them in a local cache and generates appropriate

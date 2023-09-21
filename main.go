@@ -36,8 +36,8 @@ import (
 
 	"github.com/alacuku/k8s-metadata/broker"
 	"github.com/alacuku/k8s-metadata/collectors"
-	"github.com/alacuku/k8s-metadata/internal/events"
-	"github.com/alacuku/k8s-metadata/internal/resource"
+	"github.com/alacuku/k8s-metadata/pkg/events"
+	"github.com/alacuku/k8s-metadata/pkg/resource"
 )
 
 var (
