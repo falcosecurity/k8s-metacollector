@@ -264,7 +264,7 @@ func (g *GenericResource) grpcRefs() *metadata.References {
 		for k, val := range refs {
 			grpcRefs[k] = &metadata.ListOfStrings{List: val}
 		}
-		return &metadata.References{Refs: grpcRefs}
+		return &metadata.References{Resources: grpcRefs}
 	}
 
 	return nil

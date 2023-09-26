@@ -23,7 +23,7 @@ message Selector {
 // resource will hold references to deployments/replicasets/services and other
 // resources linked to it. Entries are [resourceKind, UID].
 message References {
-  map<string, ListOfStrings> refs = 1;
+  map<string, ListOfStrings> resources = 1;
 }
 
 message ListOfStrings {
