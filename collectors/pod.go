@@ -16,7 +16,6 @@ package collectors
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -273,7 +272,6 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.GenericResource) 
 					obj = NewPartialObjectMetadata(kind, &name)
 				}
 				if obj != nil {
-					time.Sleep(10 * time.Second)
 					ch <- event2.GenericEvent{Object: obj}
 				}
 			}(ref.Name, kind)
