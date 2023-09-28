@@ -21,25 +21,18 @@ import (
 // GenericCache for generic resources.
 type GenericCache struct {
 	resources map[string]*GenericResource
-	nodes     map[string]map[string]uint
 	rwLock    sync.RWMutex
 }
 
 // NewGenericCache creates a new GenericCache.
-// A GenericResource could have multiple resources to which it refers in the same node.
-// For example, a Deployment could have more than on pod running on the same node. So we need to track this,
-// and we do it keeping a map where for each GenericResource we keep a counter of how many related resources are living
-// in a given node.
 func NewGenericCache() *GenericCache {
 	return &GenericCache{
 		resources: make(map[string]*GenericResource),
-		nodes:     make(map[string]map[string]uint),
 		rwLock:    sync.RWMutex{},
 	}
 }
 
-// Add adds a new item to the cache if it does not exist. If the resource we are adding already exists we make sure
-// to track the new add by incrementing the counter for the node. At the same time, when adding the item to the cache
+// Add adds a new item to the cache if it does not exist. When adding the item to the cache
 // we reset the information about the nodes to which we should send an "Added" event. Before calling the Add function
 // for a resource make sure that you have generated the "Added" event for the resource.
 func (gc *GenericCache) Add(key string, value *GenericResource) {
@@ -47,19 +40,6 @@ func (gc *GenericCache) Add(key string, value *GenericResource) {
 	// Check if the resource already exists.
 	if _, ok := gc.resources[key]; !ok {
 		gc.resources[key] = value
-		nodes, ok := gc.nodes[key]
-		if !ok {
-			nodes = make(map[string]uint)
-		}
-
-		for _, node := range value.AddedFor {
-			if val, ok := nodes[node]; ok {
-				nodes[node] = val + 1
-			} else {
-				nodes[node] = 1
-			}
-		}
-		gc.nodes[key] = nodes
 	}
 	// Do not track anymore the nodes for which we need to generate an "Added" event.
 	value.SetCreatedFor(nil)
@@ -77,31 +57,10 @@ func (gc *GenericCache) Update(key string, value *GenericResource) {
 	gc.rwLock.Unlock()
 }
 
-// Delete deletes an item from the cache. The item gets deleted when all the resources related to the item have been
-// removed from the nodes. Otherwise, it just updates the node counter for the node and keeps the item in the cache.
+// Delete deletes an item from the cache.
 func (gc *GenericCache) Delete(key string) {
-	var value *GenericResource // Check if the resource already exists.
-	var ok bool
 	gc.rwLock.Lock()
-	if value, ok = gc.resources[key]; ok {
-		nodes := gc.nodes[key]
-		for _, node := range value.DeletedFor {
-			if val, ok := nodes[node]; ok {
-				if val > 1 {
-					nodes[node] = val - 1
-				} else {
-					delete(nodes, node)
-				}
-			}
-		}
-		gc.nodes[key] = nodes
-	}
-
-	if len(gc.nodes[key]) == 0 {
-		delete(gc.resources, key)
-	} else {
-		value.SetDeletedFor(nil)
-	}
+	delete(gc.resources, key)
 	gc.rwLock.Unlock()
 }
 
