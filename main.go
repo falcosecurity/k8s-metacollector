@@ -272,6 +272,7 @@ func main() {
 		ServiceCollectorSource: svc,
 		PodCollectorSource:     pd,
 		Pods:                   make(map[string]map[string]struct{}),
+		ServicesName:           make(map[string]string),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create dispatcher for", "resource kind", resource.EndpointSlice)
 		os.Exit(1)

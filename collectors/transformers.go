@@ -37,7 +37,8 @@ var PodTransformer = func(logger logr.Logger) toolscache.TransformFunc {
 			return nil, err
 		}
 
-		pod.Status = corev1.PodStatus{}
+		podIP := pod.Status.PodIP
+		pod.Status = corev1.PodStatus{PodIP: podIP}
 		nodeName := pod.Spec.NodeName
 		pod.Spec = corev1.PodSpec{NodeName: nodeName}
 		pod.SetAnnotations(nil)
