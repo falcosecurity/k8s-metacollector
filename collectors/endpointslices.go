@@ -16,6 +16,7 @@ package collectors
 
 import (
 	"context"
+	"strings"
 
 	discoveryv1 "k8s.io/api/discovery/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +38,7 @@ type EndpointslicesDispatcher struct {
 	Pods                   map[string]map[string]struct{}
 	PodCollectorSource     chan<- event.GenericEvent
 	ServiceCollectorSource chan<- event.GenericEvent
+	ServicesName           map[string]string
 	Name                   string
 }
 
@@ -62,12 +64,21 @@ func (r *EndpointslicesDispatcher) Reconcile(ctx context.Context, req ctrl.Reque
 		if ok {
 			logger.V(3).Info("triggering pods and service since the resource has been deleted")
 			r.triggerPods(req.Namespace, pods)
-			r.triggerService(req.NamespacedName)
+			// Get the service name.
+			if svcName, ok := r.ServicesName[req.Name]; ok {
+				r.triggerService(types.NamespacedName{
+					Namespace: req.Namespace,
+					Name:      svcName,
+				})
+			}
 		}
 		// When the k8s resource get deleted we need to remove it from the local cache.
 		delete(r.Pods, req.String())
 		return ctrl.Result{}, nil
 	}
+
+	// Save the service name in a map. It is needed to trigger the associated service on delete.
+	r.ServicesName[eps.Name] = strings.TrimRight(eps.GenerateName, "-")
 
 	logger.V(5).Info("resource found")
 
@@ -77,7 +88,12 @@ func (r *EndpointslicesDispatcher) Reconcile(ctx context.Context, req ctrl.Reque
 	// Trigger the pods.
 	r.triggerPods(eps.Namespace, addedPods)
 	r.triggerPods(eps.Namespace, deletedPods)
-	r.triggerService(req.NamespacedName)
+	if svcName, ok := r.ServicesName[req.Name]; ok {
+		r.triggerService(types.NamespacedName{
+			Namespace: req.Namespace,
+			Name:      svcName,
+		})
+	}
 
 	return ctrl.Result{}, nil
 }
