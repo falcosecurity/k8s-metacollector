@@ -30,15 +30,6 @@ message ListOfStrings {
   repeated string list = 1;
 }
 
-// Fields sent for each resource.
-message MetaFields {
-  string uid = 1;
-  string kind = 2;
-  string name = 3;
-  string namespace = 4;
-  map<string, string> labels = 5;
-}
-
 message SpecFields {
   map<string, string> fields = 1;
 }
@@ -51,8 +42,10 @@ message StatusFields{
 // It contains the metadata for a given resource.
 message Event {
   string reason = 1;
-  MetaFields metadata = 2;
-  optional SpecFields spec = 3;
-  optional StatusFields status = 4;
-  optional References refs = 5;
+  string uid = 2;
+  string kind = 3;
+  optional string metadata = 4;
+  optional string spec = 5;
+  optional string status = 6;
+  optional References refs = 7;
 }

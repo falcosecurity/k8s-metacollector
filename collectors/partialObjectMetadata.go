@@ -16,12 +16,14 @@ package collectors
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -91,7 +93,7 @@ func NewObjectMetaCollector(cl client.Client, queue broker.Queue, cache *events.
 func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
 	var res *events.GenericResource
-	var ok, deleted, updated bool
+	var ok, deleted bool
 
 	logger := log.FromContext(ctx)
 
@@ -125,18 +127,18 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	if res, ok = r.cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		res = events.NewGenericResourceFromMetadata(&r.resource.ObjectMeta, r.resource.Kind)
-	} else if !deleted {
-		// When the resource has already been cached, check if the mutable fields have changed.
-		updated = res.UpdateLabels(r.resource.Labels)
+		res = events.NewGenericResource(r.resource.Kind, string(r.resource.UID))
 	}
 
 	// The resource has been created, or updated. Compute if we need to propagate events.
 	// The outcome is saved internally to the resource. See AddNodes method for more info.
 	if !deleted {
+		if err := r.ObjFieldsHandler(logger, res, r.resource); err != nil {
+			return ctrl.Result{}, err
+		}
 		// We need to know if the mutable fields has been changed. That's why AddNodes accepts
 		// a bool. Otherwise, we can not tell if nodes need an "Added" event or a "Modified" one.
-		res.AddNodes(currentNodes.ToSlice(), updated)
+		res.AddNodes(currentNodes.ToSlice())
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
 		res.DeleteNodes(res.Nodes.ToSlice())
@@ -179,6 +181,36 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 // broker.
 func (r *ObjectMetaCollector) Start(ctx context.Context) error {
 	return dispatch(ctx, r.logger, r.subscriberChan, r.queue, r.cache)
+}
+
+// ObjFieldsHandler populates the evt from the object.
+func (r *ObjectMetaCollector) ObjFieldsHandler(logger logr.Logger, evt *events.GenericResource, obj *metav1.PartialObjectMetadata) error {
+	if obj == nil {
+		return nil
+	}
+
+	objUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		logger.Error(err, "unable to convert to unstructured")
+		return err
+	}
+
+	// Remove unused meta fields
+	metaUnused := []string{"resourceVersion", "creationTimestamp", "deletionTimestamp",
+		"ownerReferences", "finalizers", "generateName", "deletionGracePeriodSeconds"}
+	meta := objUn["metadata"]
+	metaMap := meta.(map[string]interface{})
+	for _, key := range metaUnused {
+		delete(metaMap, key)
+	}
+
+	metaString, err := json.Marshal(metaMap)
+	if err != nil {
+		return err
+	}
+	evt.SetMeta(string(metaString))
+
+	return nil
 }
 
 // Nodes returns all the nodes where pods related to the current deployment are running.

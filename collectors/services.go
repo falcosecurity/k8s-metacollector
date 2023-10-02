@@ -16,11 +16,13 @@ package collectors
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,7 +56,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	var err error
 	var svc = &corev1.Service{}
 	var sRes *events.GenericResource
-	var ok, serviceDeleted, updated bool
+	var ok, serviceDeleted bool
 
 	logger := log.FromContext(ctx)
 
@@ -88,18 +90,18 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if sRes, ok = r.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		sRes = events.NewGenericResourceFromMetadata(&svc.ObjectMeta, resource.Service)
-	} else if !serviceDeleted {
-		// When the resource has already been cached, check if the mutable fields have changed.
-		updated = sRes.UpdateLabels(svc.Labels)
+		sRes = events.NewGenericResource(resource.Service, string(svc.UID))
 	}
 
 	// The resource has been created, or updated. Compute if we need to propagate events.
 	// The outcome is saved internally to the resource. See AddNodes method for more info.
 	if !serviceDeleted {
+		if err := r.ObjFieldsHandler(logger, sRes, svc); err != nil {
+			return ctrl.Result{}, err
+		}
 		// We need to know if the mutable fields has been changed. That's why AddNodes accepts
 		// a bool. Otherwise, we can not tell if nodes need an "Added" event or a "Modified" one.
-		sRes.AddNodes(currentNodes.ToSlice(), updated)
+		sRes.AddNodes(currentNodes.ToSlice())
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
 		sRes.DeleteNodes(sRes.Nodes.ToSlice())
@@ -148,6 +150,36 @@ func (r *ServiceCollector) initMetrics() {
 	generatedEvents.WithLabelValues(r.Name, labelCreate).Add(0)
 	generatedEvents.WithLabelValues(r.Name, labelUpdate).Add(0)
 	generatedEvents.WithLabelValues(r.Name, labelDelete).Add(0)
+}
+
+// ObjFieldsHandler populates the evt from the object.
+func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.GenericResource, svc *corev1.Service) error {
+	if svc == nil {
+		return nil
+	}
+
+	svcUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
+	if err != nil {
+		logger.Error(err, "unable to convert to unstructured")
+		return err
+	}
+
+	// Remove unused meta fields
+	metaUnused := []string{"resourceVersion", "creationTimestamp", "deletionTimestamp", "ownerReferences",
+		"finalizers", "generateName", "deletionGracePeriodSeconds"}
+	meta := svcUn["metadata"]
+	metaMap := meta.(map[string]interface{})
+	for _, key := range metaUnused {
+		delete(metaMap, key)
+	}
+
+	metaString, err := json.Marshal(metaMap)
+	if err != nil {
+		return err
+	}
+	evt.SetMeta(string(metaString))
+
+	return nil
 }
 
 // Nodes returns all the nodes where pods related to the current deployment are running.

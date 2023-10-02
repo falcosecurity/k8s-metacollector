@@ -43,6 +43,9 @@ var PodTransformer = func(logger logr.Logger) toolscache.TransformFunc {
 		pod.Spec = corev1.PodSpec{NodeName: nodeName}
 		pod.SetAnnotations(nil)
 		pod.SetManagedFields(nil)
+		pod.SetResourceVersion("")
+		pod.DeletionTimestamp = nil
+		pod.Generation = 0
 		return pod, nil
 	}
 }
@@ -60,6 +63,11 @@ var PartialObjectTransformer = func(logger logr.Logger) toolscache.TransformFunc
 
 		meta.SetAnnotations(nil)
 		meta.SetManagedFields(nil)
+		meta.SetAnnotations(nil)
+		meta.SetManagedFields(nil)
+		meta.SetResourceVersion("")
+		meta.DeletionTimestamp = nil
+		meta.Generation = 0
 		return meta, nil
 	}
 }
@@ -80,6 +88,11 @@ var ServiceTransformer = func(logger logr.Logger) toolscache.TransformFunc {
 		svc.Status = corev1.ServiceStatus{}
 		svc.SetAnnotations(nil)
 		svc.SetManagedFields(nil)
+		svc.SetAnnotations(nil)
+		svc.SetManagedFields(nil)
+		svc.SetResourceVersion("")
+		svc.DeletionTimestamp = nil
+		svc.Generation = 0
 		return svc, nil
 	}
 }
@@ -98,6 +111,11 @@ var EndpointsliceTransformer = func(logger logr.Logger) toolscache.TransformFunc
 		ep.Ports = nil
 		ep.SetAnnotations(nil)
 		ep.SetManagedFields(nil)
+		ep.SetAnnotations(nil)
+		ep.SetManagedFields(nil)
+		ep.SetResourceVersion("")
+		ep.DeletionTimestamp = nil
+		ep.Generation = 0
 		return ep, nil
 	}
 }
