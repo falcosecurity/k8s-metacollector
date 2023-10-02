@@ -234,13 +234,13 @@ func (g *Resource) ToEvents() []Event {
 	if len(g.addedFor) != 0 {
 		evts[0] = &GenericEvent{
 			Event: &metadata.Event{
-				Reason:   Added,
-				Uid:      g.uid,
-				Kind:     g.kind,
-				Metadata: meta,
-				Spec:     spec,
-				Status:   status,
-				Refs:     g.grpcRefs(),
+				Reason: Added,
+				Uid:    g.uid,
+				Kind:   g.kind,
+				Meta:   meta,
+				Spec:   spec,
+				Status: status,
+				Refs:   g.grpcRefs(),
 			},
 			DestinationNodes: g.addedFor,
 		}
@@ -250,13 +250,13 @@ func (g *Resource) ToEvents() []Event {
 	if len(g.modifiedFor) != 0 {
 		evts[1] = &GenericEvent{
 			Event: &metadata.Event{
-				Reason:   Modified,
-				Uid:      g.uid,
-				Kind:     g.kind,
-				Metadata: meta,
-				Spec:     spec,
-				Status:   status,
-				Refs:     g.grpcRefs(),
+				Reason: Modified,
+				Uid:    g.uid,
+				Kind:   g.kind,
+				Meta:   meta,
+				Spec:   spec,
+				Status: status,
+				Refs:   g.grpcRefs(),
 			},
 			DestinationNodes: g.modifiedFor,
 		}
@@ -299,26 +299,26 @@ func (g *Resource) ToEvent(reason string, nodes []string) Event {
 	case Added:
 		evt = &GenericEvent{
 			Event: &metadata.Event{
-				Reason:   Added,
-				Uid:      g.uid,
-				Kind:     g.kind,
-				Metadata: meta,
-				Spec:     spec,
-				Status:   status,
-				Refs:     g.grpcRefs(),
+				Reason: Added,
+				Uid:    g.uid,
+				Kind:   g.kind,
+				Meta:   meta,
+				Spec:   spec,
+				Status: status,
+				Refs:   g.grpcRefs(),
 			},
 			DestinationNodes: nodes,
 		}
 	case Modified:
 		evt = &GenericEvent{
 			Event: &metadata.Event{
-				Reason:   Modified,
-				Uid:      g.uid,
-				Kind:     g.kind,
-				Metadata: meta,
-				Spec:     spec,
-				Status:   status,
-				Refs:     g.grpcRefs(),
+				Reason: Modified,
+				Uid:    g.uid,
+				Kind:   g.kind,
+				Meta:   meta,
+				Spec:   spec,
+				Status: status,
+				Refs:   g.grpcRefs(),
 			},
 			DestinationNodes: nodes,
 		}
