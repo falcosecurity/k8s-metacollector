@@ -16,11 +16,13 @@ package collectors
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -60,8 +62,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	var pod corev1.Pod
 	var pRes *events.GenericResource
 	var err error
-	var ok, podDeleted, ownerRefs, svcRefs, updated bool
-
+	var ok, podDeleted bool
 	logReq := log.FromContext(ctx)
 
 	err = pc.Get(ctx, req.NamespacedName, &pod)
@@ -88,13 +89,10 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if pRes, ok = pc.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logReq.V(3).Info("never met this resource in my life")
-		pRes = events.NewGenericResourceFromMetadata(&pod.ObjectMeta, resource.Pod)
-		if _, err = pc.NamespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+		pRes = events.NewGenericResource(resource.Pod, string(pod.UID))
+		if err = pc.NamespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
-	} else if !podDeleted {
-		// When the resource has already been cached, check if the mutable fields have changed.
-		updated = pRes.UpdateLabels(pod.Labels)
 	}
 
 	// The resource has been created, or updated. Compute if we need to propagate events.
@@ -102,18 +100,20 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if !podDeleted {
 		// Get the owner references for the current resource. Note that we get the owner references
 		// only for the one that are controllers.
-		ownerRefs, err = pc.OwnerRefsHandler(ctx, logReq, pRes, &pod)
-		if err != nil {
+		if err := pc.OwnerRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
 
 		// Get references for all the services that are serving traffic to the current pod.
-		svcRefs, err = pc.ServiceRefsHandler(ctx, logReq, pRes, &pod)
-		if err != nil {
+		if err = pc.ServiceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		pRes.AddNodes([]string{pod.Spec.NodeName}, ownerRefs || svcRefs || updated)
+		if err = pc.ObjFieldsHandler(logReq, pRes, &pod); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		pRes.AddNodes([]string{pod.Spec.NodeName})
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
 		pRes.DeleteNodes(pRes.Nodes.ToSlice())
@@ -153,16 +153,15 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 // OwnerRefsHandler extracts the owner references for a given pod and updates the related event.
 // It takes in account only references for the owners that are also controllers of the pod resource.
-func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) (bool, error) {
+func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
 	if pod == nil {
-		return false, nil
+		return nil
 	}
 
-	var updated bool
 	// Get the owner reference, and if set, get the uid of the owner.
 	owner := events.ManagingOwner(pod.OwnerReferences)
 	if owner != nil {
-		updated = evt.AddReferencesForKind(owner.Kind, []fields.Reference{{
+		evt.AddReferencesForKind(owner.Kind, []fields.Reference{{
 			Name: types.NamespacedName{
 				Namespace: pod.Namespace,
 				Name:      owner.Name,
@@ -178,30 +177,28 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 			}, replicaset)
 			if err != nil && !k8sApiErrors.IsNotFound(err) {
 				logger.Error(err, "unable to get resource related to", "ReplicaSet", klog.KRef(pod.Namespace, owner.Name))
-				return updated, err
+				return err
 			}
 			owner = events.ManagingOwner(replicaset.OwnerReferences)
 			if owner != nil {
-				if evt.AddReferencesForKind(owner.Kind, []fields.Reference{{
+				evt.AddReferencesForKind(owner.Kind, []fields.Reference{{
 					Name: types.NamespacedName{
 						Namespace: pod.Namespace,
 						Name:      owner.Name,
 					},
 					UID: owner.UID,
-				}}) && !updated {
-					updated = true
-				}
+				}})
 			}
 		}
 	}
 
-	return updated, nil
+	return nil
 }
 
 // ServiceRefsHandler get the UID of each service serving the given pod and update the related event.
-func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) (bool, error) {
+func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
 	if pod == nil {
-		return false, nil
+		return nil
 	}
 
 	// List all the services in the pod's namespace.
@@ -209,7 +206,7 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 	err := pc.List(ctx, &services, &client.ListOptions{Namespace: pod.Namespace})
 	if err != nil {
 		logger.Error(err, "unable to get services list", "in namespace", pod.Namespace)
-		return false, err
+		return err
 	}
 	var svcRefs []fields.Reference
 	for i := range services.Items {
@@ -226,17 +223,52 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 		}
 	}
 
-	if evt.AddReferencesForKind(resource.Service, svcRefs) {
-		evt.SetModifiedFor([]string{pod.Spec.NodeName})
+	evt.AddReferencesForKind(resource.Service, svcRefs)
+
+	return nil
+}
+
+// ObjFieldsHandler populates the evt from the object.
+func (pc *PodCollector) ObjFieldsHandler(logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
+	if pod == nil {
+		return nil
 	}
 
-	return false, nil
+	podUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
+	if err != nil {
+		logger.Error(err, "unable to convert to unstructured")
+		return err
+	}
+
+	// Remove unused meta fields
+	metaUnused := []string{"resourceVersion", "creationTimestamp", "deletionTimestamp", "ownerReferences",
+		"finalizers", "generateName", "deletionGracePeriodSeconds"}
+	meta := podUn["metadata"]
+	metaMap := meta.(map[string]interface{})
+	for _, key := range metaUnused {
+		delete(metaMap, key)
+	}
+
+	metaString, err := json.Marshal(metaMap)
+	if err != nil {
+		return err
+	}
+	evt.SetMeta(string(metaString))
+
+	// Marshal status to json.
+	statusString, err := json.Marshal(podUn["status"])
+	if err != nil {
+		return err
+	}
+	evt.SetStatus(string(statusString))
+
+	return nil
 }
 
 // NamespaceRefsHandler get the UID of the namespace of the given pod and update the related event.
-func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) (bool, error) {
+func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
 	if pod == nil {
-		return false, nil
+		return nil
 	}
 
 	// Get the pod's namespace.
@@ -248,13 +280,15 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 	err := pc.Get(ctx, nsKey, namespace)
 	if err != nil {
 		logger.Error(err, "unable to get", "namespace", pod.Namespace)
-		return false, err
+		return err
 	}
 
-	return evt.AddReferencesForKind(resource.Namespace, []fields.Reference{{
+	evt.AddReferencesForKind(resource.Namespace, []fields.Reference{{
 		Name: nsKey,
 		UID:  namespace.UID,
-	}}), nil
+	}})
+
+	return nil
 }
 
 func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.GenericResource) {
