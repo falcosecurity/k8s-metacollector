@@ -18,15 +18,15 @@ import (
 	"sync"
 )
 
-// GenericCache for generic resources.
-type GenericCache struct {
+// Cache for generic resources.
+type Cache struct {
 	resources map[string]*Resource
 	rwLock    sync.RWMutex
 }
 
-// NewGenericCache creates a new GenericCache.
-func NewGenericCache() *GenericCache {
-	return &GenericCache{
+// NewCache creates a new Cache.
+func NewCache() *Cache {
+	return &Cache{
 		resources: make(map[string]*Resource),
 		rwLock:    sync.RWMutex{},
 	}
@@ -35,7 +35,7 @@ func NewGenericCache() *GenericCache {
 // Add adds a new item to the cache if it does not exist. When adding the item to the cache
 // we reset the information about the nodes to which we should send an "Added" event. Before calling the Add function
 // for a resource make sure that you have generated the "Added" event for the resource.
-func (gc *GenericCache) Add(key string, value *Resource) {
+func (gc *Cache) Add(key string, value *Resource) {
 	gc.rwLock.Lock()
 	// Check if the resource already exists.
 	if _, ok := gc.resources[key]; !ok {
@@ -49,7 +49,7 @@ func (gc *GenericCache) Add(key string, value *Resource) {
 // Update updates an item in the cache. At the same time, when updating the item in the cache
 // we reset the information about the nodes to which we should send a "Modified" event. Before calling the Update function
 // for a resource make sure that you have generated the "Modified" event for the resource.
-func (gc *GenericCache) Update(key string, value *Resource) {
+func (gc *Cache) Update(key string, value *Resource) {
 	gc.rwLock.Lock()
 	gc.resources[key] = value
 	// Do not track anymore the nodes for which we need to generate a "Modified" event.
@@ -58,14 +58,14 @@ func (gc *GenericCache) Update(key string, value *Resource) {
 }
 
 // Delete deletes an item from the cache.
-func (gc *GenericCache) Delete(key string) {
+func (gc *Cache) Delete(key string) {
 	gc.rwLock.Lock()
 	delete(gc.resources, key)
 	gc.rwLock.Unlock()
 }
 
 // Get returns an item from the cache using the provided key.
-func (gc *GenericCache) Get(key string) (*Resource, bool) {
+func (gc *Cache) Get(key string) (*Resource, bool) {
 	gc.rwLock.RLock()
 	val, ok := gc.resources[key]
 	gc.rwLock.RUnlock()
@@ -73,7 +73,7 @@ func (gc *GenericCache) Get(key string) (*Resource, bool) {
 }
 
 // ForEach applies function to each entry in the cache.
-func (gc *GenericCache) ForEach(apply func(resource *Resource)) {
+func (gc *Cache) ForEach(apply func(resource *Resource)) {
 	gc.rwLock.RLock()
 	for _, res := range gc.resources {
 		apply(res)

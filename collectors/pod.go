@@ -45,7 +45,7 @@ import (
 type PodCollector struct {
 	client.Client
 	Queue           broker.Queue
-	Cache           *events.GenericCache
+	Cache           *events.Cache
 	ExternalSources map[string]chan<- event2.GenericEvent
 	EndpointsSource source.Source
 	Name            string
