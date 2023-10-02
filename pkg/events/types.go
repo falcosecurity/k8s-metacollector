@@ -244,6 +244,7 @@ func (g *Resource) ToEvents() []Event {
 			},
 			DestinationNodes: g.addedFor,
 		}
+		g.addedFor = nil
 	}
 
 	if len(g.modifiedFor) != 0 {
@@ -259,6 +260,7 @@ func (g *Resource) ToEvents() []Event {
 			},
 			DestinationNodes: g.modifiedFor,
 		}
+		g.modifiedFor = nil
 	}
 
 	if len(g.deletedFor) != 0 {
@@ -270,6 +272,7 @@ func (g *Resource) ToEvents() []Event {
 			},
 			DestinationNodes: g.deletedFor,
 		}
+		g.deletedFor = nil
 	}
 
 	return evts
