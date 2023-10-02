@@ -55,7 +55,7 @@ type ServiceCollector struct {
 func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
 	var svc = &corev1.Service{}
-	var sRes *events.GenericResource
+	var sRes *events.Resource
 	var ok, serviceDeleted bool
 
 	logger := log.FromContext(ctx)
@@ -90,7 +90,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if sRes, ok = r.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		sRes = events.NewGenericResource(resource.Service, string(svc.UID))
+		sRes = events.NewResource(resource.Service, string(svc.UID))
 	}
 
 	// The resource has been created, or updated. Compute if we need to propagate events.
@@ -104,7 +104,8 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		sRes.AddNodes(currentNodes.ToSlice())
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
-		sRes.DeleteNodes(sRes.Nodes.ToSlice())
+		nodes := sRes.GetNodes()
+		sRes.DeleteNodes(nodes.ToSlice())
 	}
 
 	// At this point our resource has all the necessary bits to know for each node which type of events need to be sent.
@@ -153,7 +154,7 @@ func (r *ServiceCollector) initMetrics() {
 }
 
 // ObjFieldsHandler populates the evt from the object.
-func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.GenericResource, svc *corev1.Service) error {
+func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Resource, svc *corev1.Service) error {
 	if svc == nil {
 		return nil
 	}

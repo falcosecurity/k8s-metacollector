@@ -60,7 +60,7 @@ type PodCollector struct {
 // Reconcile generates events to be sent to nodes when changes are detected for the watched resources.
 func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var pod corev1.Pod
-	var pRes *events.GenericResource
+	var pRes *events.Resource
 	var err error
 	var ok, podDeleted bool
 	logReq := log.FromContext(ctx)
@@ -89,7 +89,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if pRes, ok = pc.Cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logReq.V(3).Info("never met this resource in my life")
-		pRes = events.NewGenericResource(resource.Pod, string(pod.UID))
+		pRes = events.NewResource(resource.Pod, string(pod.UID))
 		if err = pc.NamespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -116,7 +116,8 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		pRes.AddNodes([]string{pod.Spec.NodeName})
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
-		pRes.DeleteNodes(pRes.Nodes.ToSlice())
+		nodes := pRes.GetNodes()
+		pRes.DeleteNodes(nodes.ToSlice())
 	}
 
 	// At this point our resource has all the necessary bits to know for each node which type of events need to be sent.
@@ -153,7 +154,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 // OwnerRefsHandler extracts the owner references for a given pod and updates the related event.
 // It takes in account only references for the owners that are also controllers of the pod resource.
-func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
+func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -196,7 +197,7 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 }
 
 // ServiceRefsHandler get the UID of each service serving the given pod and update the related event.
-func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
+func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -229,7 +230,7 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 }
 
 // ObjFieldsHandler populates the evt from the object.
-func (pc *PodCollector) ObjFieldsHandler(logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
+func (pc *PodCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -266,7 +267,7 @@ func (pc *PodCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Generic
 }
 
 // NamespaceRefsHandler get the UID of the namespace of the given pod and update the related event.
-func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.GenericResource, pod *corev1.Pod) error {
+func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -291,8 +292,9 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 	return nil
 }
 
-func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.GenericResource) {
-	for kind, refs := range evt.ResourceReferences {
+func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.Resource) {
+	refs := evt.GetResourceReferences()
+	for kind, refs := range refs {
 		ch, ok := pc.ExternalSources[kind]
 		if !ok {
 			continue
@@ -313,8 +315,9 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.GenericResource) 
 	}
 }
 
-func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.GenericResource) {
-	for kind, refs := range evt.ResourceReferences {
+func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.Resource) {
+	refs := evt.GetResourceReferences()
+	for kind, refs := range refs {
 		ch, ok := pc.ExternalSources[kind]
 		if !ok {
 			continue
