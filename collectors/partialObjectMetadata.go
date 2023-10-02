@@ -44,7 +44,7 @@ import (
 type ObjectMetaCollector struct {
 	client.Client
 	queue broker.Queue
-	cache *events.GenericCache
+	cache *events.Cache
 	// externalSource watched for events that trigger the reconcile. In some cases changes in
 	// other resources triggers the current resource. For example, when a pod is created we need to trigger the namespace
 	// where the pod lives in order to send also the namespace to the node where the pod is running.
@@ -63,7 +63,7 @@ type ObjectMetaCollector struct {
 }
 
 // NewObjectMetaCollector returns a new meta collector for a given resource kind.
-func NewObjectMetaCollector(cl client.Client, queue broker.Queue, cache *events.GenericCache,
+func NewObjectMetaCollector(cl client.Client, queue broker.Queue, cache *events.Cache,
 	res *metav1.PartialObjectMetadata, name string, opt ...ObjectMetaOption) *ObjectMetaCollector {
 	opts := objectMetaOptions{
 		podMatchingFields: func(meta *metav1.ObjectMeta) client.ListOption {

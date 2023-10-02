@@ -27,7 +27,7 @@ import (
 // Dispatch starts a go routing which waits for subscribers and dispatches the events to them. Events
 // are taken from the cache and sent through the queue. It does not return until the context is closed.
 func dispatch(ctx context.Context, logger logr.Logger,
-	subChan <-chan string, queue broker.Queue, cache *events.GenericCache) error {
+	subChan <-chan string, queue broker.Queue, cache *events.Cache) error {
 	wg := sync.WaitGroup{}
 	// it listens for new subscribers and sends the cached events to the
 	// subscriber received on the channel.

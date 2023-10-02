@@ -42,7 +42,7 @@ import (
 type ServiceCollector struct {
 	client.Client
 	Queue           broker.Queue
-	Cache           *events.GenericCache
+	Cache           *events.Cache
 	EndpointsSource source.Source
 	Name            string
 	SubscriberChan  <-chan string

@@ -152,7 +152,7 @@ func main() {
 	queue := broker.NewBlockingChannel(1)
 	podCollector := &collectors.PodCollector{
 		Client:          mgr.GetClient(),
-		Cache:           events.NewGenericCache(),
+		Cache:           events.NewCache(),
 		Name:            "pod-collector",
 		Queue:           queue,
 		ExternalSources: externalSrc,
@@ -166,7 +166,7 @@ func main() {
 	}
 
 	dplChanTrig := make(chan string)
-	dplCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+	dplCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Deployment, nil), "deployment-collector",
 		collectors.WithSubscribersChan(dplChanTrig),
 		collectors.WithExternalSource(deploymentSource),
@@ -182,7 +182,7 @@ func main() {
 	}
 
 	rsChanTrig := make(chan string)
-	rsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+	rsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.ReplicaSet, nil), "replicaset-collector",
 		collectors.WithSubscribersChan(rsChanTrig),
 		collectors.WithExternalSource(replicasetSource),
@@ -198,7 +198,7 @@ func main() {
 	}
 
 	nsChanTrig := make(chan string)
-	nsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+	nsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Namespace, nil), "namespace-collector",
 		collectors.WithSubscribersChan(nsChanTrig),
 		collectors.WithExternalSource(namespaceSource))
@@ -209,7 +209,7 @@ func main() {
 	}
 
 	dsChanTrig := make(chan string)
-	dsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+	dsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Daemonset, nil), "daemonset-collector",
 		collectors.WithSubscribersChan(dsChanTrig),
 		collectors.WithExternalSource(daemonsetSource),
@@ -225,7 +225,7 @@ func main() {
 	}
 
 	rcChanTrig := make(chan string)
-	rcCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewGenericCache(),
+	rcCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.ReplicationController, nil), "replicationcontroller-collector",
 		collectors.WithSubscribersChan(rcChanTrig),
 		collectors.WithExternalSource(rcSource),
@@ -243,7 +243,7 @@ func main() {
 	svcChanTrig := make(chan string)
 	svcCollector := &collectors.ServiceCollector{
 		Client:          mgr.GetClient(),
-		Cache:           events.NewGenericCache(),
+		Cache:           events.NewCache(),
 		Name:            "service-collector",
 		Queue:           queue,
 		EndpointsSource: serviceSource,
