@@ -92,7 +92,7 @@ func NewObjectMetaCollector(cl client.Client, queue broker.Queue, cache *events.
 // Reconcile generates events to be sent to nodes when changes are detected for the watched resources.
 func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	var res *events.GenericResource
+	var res *events.Resource
 	var ok, deleted bool
 
 	logger := log.FromContext(ctx)
@@ -127,7 +127,7 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	if res, ok = r.cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
-		res = events.NewGenericResource(r.resource.Kind, string(r.resource.UID))
+		res = events.NewResource(r.resource.Kind, string(r.resource.UID))
 	}
 
 	// The resource has been created, or updated. Compute if we need to propagate events.
@@ -141,7 +141,8 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 		res.AddNodes(currentNodes.ToSlice())
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
-		res.DeleteNodes(res.Nodes.ToSlice())
+		nodes := res.GetNodes()
+		res.DeleteNodes(nodes.ToSlice())
 	}
 
 	// At this point our resource has all the necessary bits to know for each node which type of events need to be sent.
@@ -184,7 +185,7 @@ func (r *ObjectMetaCollector) Start(ctx context.Context) error {
 }
 
 // ObjFieldsHandler populates the evt from the object.
-func (r *ObjectMetaCollector) ObjFieldsHandler(logger logr.Logger, evt *events.GenericResource, obj *metav1.PartialObjectMetadata) error {
+func (r *ObjectMetaCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Resource, obj *metav1.PartialObjectMetadata) error {
 	if obj == nil {
 		return nil
 	}

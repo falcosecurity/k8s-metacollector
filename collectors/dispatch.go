@@ -37,9 +37,10 @@ func dispatch(ctx context.Context, logger logr.Logger,
 			select {
 			case sub := <-subChan:
 				logger.V(2).Info("Dispatching events", "subscriber", sub)
-				dispatch := func(res *events.GenericResource) {
+				dispatch := func(res *events.Resource) {
 					// Check if the pod is related to the subscriber.
-					if _, ok := res.Nodes[sub]; ok {
+					nodes := res.GetNodes()
+					if _, ok := nodes[sub]; ok {
 						queue.Push(res.ToEvent(events.Added, []string{sub}))
 					}
 				}
