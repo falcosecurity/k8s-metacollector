@@ -41,11 +41,7 @@ var PodTransformer = func(logger logr.Logger) toolscache.TransformFunc {
 		pod.Status = corev1.PodStatus{PodIP: podIP}
 		nodeName := pod.Spec.NodeName
 		pod.Spec = corev1.PodSpec{NodeName: nodeName}
-		pod.SetAnnotations(nil)
-		pod.SetManagedFields(nil)
-		pod.SetResourceVersion("")
-		pod.DeletionTimestamp = nil
-		pod.Generation = 0
+		filterOutMetaFields(&pod.ObjectMeta)
 		return pod, nil
 	}
 }
@@ -61,13 +57,7 @@ var PartialObjectTransformer = func(logger logr.Logger) toolscache.TransformFunc
 			return nil, err
 		}
 
-		meta.SetAnnotations(nil)
-		meta.SetManagedFields(nil)
-		meta.SetAnnotations(nil)
-		meta.SetManagedFields(nil)
-		meta.SetResourceVersion("")
-		meta.DeletionTimestamp = nil
-		meta.Generation = 0
+		filterOutMetaFields(&meta.ObjectMeta)
 		return meta, nil
 	}
 }
@@ -86,13 +76,7 @@ var ServiceTransformer = func(logger logr.Logger) toolscache.TransformFunc {
 		selector := svc.Spec.Selector
 		svc.Spec = corev1.ServiceSpec{Selector: selector}
 		svc.Status = corev1.ServiceStatus{}
-		svc.SetAnnotations(nil)
-		svc.SetManagedFields(nil)
-		svc.SetAnnotations(nil)
-		svc.SetManagedFields(nil)
-		svc.SetResourceVersion("")
-		svc.DeletionTimestamp = nil
-		svc.Generation = 0
+		filterOutMetaFields(&svc.ObjectMeta)
 		return svc, nil
 	}
 }
@@ -109,13 +93,21 @@ var EndpointsliceTransformer = func(logger logr.Logger) toolscache.TransformFunc
 		}
 
 		ep.Ports = nil
-		ep.SetAnnotations(nil)
-		ep.SetManagedFields(nil)
-		ep.SetAnnotations(nil)
-		ep.SetManagedFields(nil)
-		ep.SetResourceVersion("")
-		ep.DeletionTimestamp = nil
-		ep.Generation = 0
+		filterOutMetaFields(&ep.ObjectMeta)
 		return ep, nil
 	}
+}
+
+// filterOutMetaFields removes unused metadata fields.
+func filterOutMetaFields(meta *metav1.ObjectMeta) {
+	// Current fields that are not filtered out:
+	// Name, GenerateName, Namespace, UID, CreationTimestamp, Labels, OwnerReferences.
+	meta.Annotations = nil
+	meta.ManagedFields = nil
+	meta.Annotations = nil
+	meta.Finalizers = nil
+	meta.ResourceVersion = ""
+	meta.DeletionTimestamp = nil
+	meta.Generation = 0
+	meta.DeletionGracePeriodSeconds = nil
 }

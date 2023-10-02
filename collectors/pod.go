@@ -241,9 +241,8 @@ func (pc *PodCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Resourc
 		return err
 	}
 
-	// Remove unused meta fields
-	metaUnused := []string{"resourceVersion", "creationTimestamp", "deletionTimestamp", "ownerReferences",
-		"finalizers", "generateName", "deletionGracePeriodSeconds"}
+	// Remove unused meta fields.
+	metaUnused := []string{"creationTimestamp", "ownerReferences"}
 	meta := podUn["metadata"]
 	metaMap := meta.(map[string]interface{})
 	for _, key := range metaUnused {
