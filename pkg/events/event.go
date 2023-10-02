@@ -43,7 +43,7 @@ func (ge *GenericEvent) Nodes() []string {
 // String returns the event in string format.
 func (ge *GenericEvent) String() string {
 	return fmt.Sprintf("Resource kind %q, event type %q, resource name %q, namespace %q, destination nodes %q",
-		ge.Kind, ge.Reason, ge.GetMetadata(), ge.Nodes())
+		ge.Kind, ge.Reason, ge.GetMeta(), ge.Nodes())
 }
 
 // Type returns the event type.

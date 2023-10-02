@@ -44,7 +44,7 @@ message Event {
   string reason = 1;
   string uid = 2;
   string kind = 3;
-  optional string metadata = 4;
+  optional string meta = 4;
   optional string spec = 5;
   optional string status = 6;
   optional References refs = 7;
