@@ -105,12 +105,12 @@ func (br *Broker) Start(ctx context.Context) error {
 				c, ok := br.subscribers.Load(node)
 				if !ok {
 					br.logger.Info("no stream found for", "node", node)
-					break
+					continue
 				}
 				con, ok := c.(metadata.Connection)
 				if !ok {
 					br.logger.Error(fmt.Errorf("failed to cast subscriber connection %T", con), "node", node)
-					break
+					continue
 				}
 
 				if err := con.Stream.Send(evt.GRPCMessage()); err != nil {
