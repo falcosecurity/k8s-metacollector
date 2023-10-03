@@ -41,12 +41,31 @@ import (
 // events when such resources change over time.
 type ServiceCollector struct {
 	client.Client
-	Queue           broker.Queue
-	Cache           *events.Cache
-	EndpointsSource source.Source
-	Name            string
-	SubscriberChan  <-chan string
+	queue           broker.Queue
+	cache           *events.Cache
+	endpointsSource source.Source
+	name            string
+	subscriberChan  <-chan string
 	logger          logr.Logger
+	generatedEventsMetrics
+}
+
+// NewServiceCollector returns a new service collector.
+func NewServiceCollector(cl client.Client, queue broker.Queue, cache *events.Cache, name string, opt ...CollectorOption) *ServiceCollector {
+	opts := collectorOptions{}
+	for _, o := range opt {
+		o(&opts)
+	}
+
+	return &ServiceCollector{
+		Client:                 cl,
+		queue:                  queue,
+		cache:                  cache,
+		endpointsSource:        opts.externalSource,
+		name:                   name,
+		subscriberChan:         opts.subscriberChan,
+		generatedEventsMetrics: newGeneratedEventsMetcrics(name),
+	}
 }
 
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
@@ -68,7 +87,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if k8sApiErrors.IsNotFound(err) {
 		// When the k8s resource get deleted we need to remove it from the local cache.
-		if _, ok = r.Cache.Get(req.String()); ok {
+		if _, ok = r.cache.Get(req.String()); ok {
 			logger.Info("marking resource for deletion")
 			serviceDeleted = true
 		} else {
@@ -87,7 +106,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Check if the resource has already been cached.
-	if sRes, ok = r.Cache.Get(req.String()); !ok {
+	if sRes, ok = r.cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logger.V(3).Info("never met this resource in my life")
 		sRes = events.NewResource(resource.Service, string(svc.UID))
@@ -119,20 +138,20 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		switch evt.Type() {
 		case events.Added:
 			// Perform actions for "Added" events.
-			generatedEvents.WithLabelValues(r.Name, labelCreate).Inc()
+			r.createCounter.Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
-			r.Cache.Add(req.String(), sRes)
+			r.cache.Add(req.String(), sRes)
 		case events.Modified:
 			// Run specific code for "Modified" events.
-			generatedEvents.WithLabelValues(r.Name, labelUpdate).Inc()
-			r.Cache.Update(req.String(), sRes)
+			r.updateCounter.Inc()
+			r.cache.Update(req.String(), sRes)
 		case events.Deleted:
 			// Run specific code for "Deleted" events.
-			generatedEvents.WithLabelValues(r.Name, labelDelete).Inc()
-			r.Cache.Delete(req.String())
+			r.deleteCounter.Inc()
+			r.cache.Delete(req.String())
 		}
 		// Add event to the queue.
-		r.Queue.Push(evt)
+		r.queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -142,13 +161,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (r *ServiceCollector) Start(ctx context.Context) error {
-	return dispatch(ctx, r.logger, r.SubscriberChan, r.Queue, r.Cache)
-}
-
-func (r *ServiceCollector) initMetrics() {
-	generatedEvents.WithLabelValues(r.Name, labelCreate).Add(0)
-	generatedEvents.WithLabelValues(r.Name, labelUpdate).Add(0)
-	generatedEvents.WithLabelValues(r.Name, labelDelete).Add(0)
+	return dispatch(ctx, r.logger, r.subscriberChan, r.queue, r.cache)
 }
 
 // ObjFieldsHandler populates the evt from the object.
@@ -203,26 +216,29 @@ func (r *ServiceCollector) Nodes(ctx context.Context, logger logr.Logger, svc *c
 	return nodes, nil
 }
 
+// GetName returns the name of the collector.
+func (r *ServiceCollector) GetName() string {
+	return r.name
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
-	r.initMetrics()
-
 	// Set the generic logger to be used in other function then the reconcile loop.
-	r.logger = mgr.GetLogger().WithName(r.Name)
+	r.logger = mgr.GetLogger().WithName(r.name)
 
-	lc, err := newLogConstructor(mgr.GetLogger(), r.Name, resource.Service)
+	lc, err := newLogConstructor(mgr.GetLogger(), r.name, resource.Service)
 	if err != nil {
 		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Service{},
-			builder.WithPredicates(predicatesWithMetrics(r.Name, apiServerSource, nil))).
+			builder.WithPredicates(predicatesWithMetrics(r.name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		Watches(r.EndpointsSource,
+		Watches(r.endpointsSource,
 			&handler.EnqueueRequestForObject{},
-			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.Endpoints, nil))).
+			builder.WithPredicates(predicatesWithMetrics(r.name, resource.Endpoints, nil))).
 		Owns(&discoveryv1.EndpointSlice{},
-			builder.WithPredicates(predicatesWithMetrics(r.Name, resource.EndpointSlice, nil))).
+			builder.WithPredicates(predicatesWithMetrics(r.name, resource.EndpointSlice, nil))).
 		Complete(r)
 }

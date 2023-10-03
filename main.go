@@ -237,14 +237,10 @@ func main() {
 	}
 
 	svcChanTrig := make(chan string)
-	svcCollector := &collectors.ServiceCollector{
-		Client:          mgr.GetClient(),
-		Cache:           events.NewCache(),
-		Name:            "service-collector",
-		Queue:           queue,
-		EndpointsSource: serviceSource,
-		SubscriberChan:  svcChanTrig,
-	}
+
+	svcCollector := collectors.NewServiceCollector(mgr.GetClient(), queue, events.NewCache(), "service-collector",
+		collectors.WithExternalSource(serviceSource),
+		collectors.WithSubscribersChan(svcChanTrig))
 
 	if err = svcCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Service)
@@ -327,7 +323,7 @@ func main() {
 	}
 
 	if err = mgr.Add(svcCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", svcCollector.Name)
+		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", svcCollector.GetName())
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
