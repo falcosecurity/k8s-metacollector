@@ -150,15 +150,11 @@ func main() {
 	podChanTrig := make(chan string)
 
 	queue := broker.NewBlockingChannel(1)
-	podCollector := &collectors.PodCollector{
-		Client:          mgr.GetClient(),
-		Cache:           events.NewCache(),
-		Name:            "pod-collector",
-		Queue:           queue,
-		ExternalSources: externalSrc,
-		EndpointsSource: podSource,
-		SubscriberChan:  podChanTrig,
-	}
+
+	podCollector := collectors.NewPodCollector(mgr.GetClient(), queue, events.NewCache(), "pod-collector",
+		collectors.WithOwnerSources(externalSrc),
+		collectors.WithSubscribersChan(podChanTrig),
+		collectors.WithExternalSource(podSource))
 
 	if err = podCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Pod)
