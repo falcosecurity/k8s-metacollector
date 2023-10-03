@@ -64,8 +64,8 @@ type ObjectMetaCollector struct {
 
 // NewObjectMetaCollector returns a new meta collector for a given resource kind.
 func NewObjectMetaCollector(cl client.Client, queue broker.Queue, cache *events.Cache,
-	res *metav1.PartialObjectMetadata, name string, opt ...ObjectMetaOption) *ObjectMetaCollector {
-	opts := objectMetaOptions{
+	res *metav1.PartialObjectMetadata, name string, opt ...CollectorOption) *ObjectMetaCollector {
+	opts := collectorOptions{
 		podMatchingFields: func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.ListOptions{}
 		},
