@@ -17,6 +17,7 @@ package collectors
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -24,6 +25,7 @@ type collectorOptions struct {
 	externalSource    source.Source
 	subscriberChan    <-chan string
 	podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption
+	ownerSources      map[string]chan<- event.GenericEvent
 }
 
 // CollectorOption function used to set options when creating a new meta collector.
@@ -47,5 +49,12 @@ func WithSubscribersChan(sChan <-chan string) CollectorOption {
 func WithPodMatchingFields(podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption) CollectorOption {
 	return func(opt *collectorOptions) {
 		opt.podMatchingFields = podMatchingFields
+	}
+}
+
+// WithOwnerSources a map holding channels used to trigger owner's reconciles.
+func WithOwnerSources(sources map[string]chan<- event.GenericEvent) CollectorOption {
+	return func(opt *collectorOptions) {
+		opt.ownerSources = sources
 	}
 }

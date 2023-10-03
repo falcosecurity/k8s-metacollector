@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	event2 "sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -44,13 +44,33 @@ import (
 // events when such resources change over time.
 type PodCollector struct {
 	client.Client
-	Queue           broker.Queue
-	Cache           *events.Cache
-	ExternalSources map[string]chan<- event2.GenericEvent
-	EndpointsSource source.Source
-	Name            string
-	SubscriberChan  <-chan string
+	queue           broker.Queue
+	cache           *events.Cache
+	ownersSources   map[string]chan<- event.GenericEvent
+	endpointsSource source.Source
+	name            string
+	subscriberChan  <-chan string
 	logger          logr.Logger
+	generatedEventsMetrics
+}
+
+// NewPodCollector returns a new pod collector.
+func NewPodCollector(cl client.Client, queue broker.Queue, cache *events.Cache, name string, opt ...CollectorOption) *PodCollector {
+	opts := collectorOptions{}
+	for _, o := range opt {
+		o(&opts)
+	}
+
+	return &PodCollector{
+		Client:                 cl,
+		queue:                  queue,
+		cache:                  cache,
+		ownersSources:          opts.ownerSources,
+		endpointsSource:        opts.externalSource,
+		name:                   name,
+		subscriberChan:         opts.subscriberChan,
+		generatedEventsMetrics: newGeneratedEventsMetcrics(name),
+	}
 }
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
@@ -75,7 +95,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if k8sApiErrors.IsNotFound(err) {
 		// When the k8s resource get deleted we need to remove it from the local cache.
-		if _, ok = pc.Cache.Get(req.String()); ok {
+		if _, ok = pc.cache.Get(req.String()); ok {
 			logReq.V(3).Info("marking resource for deletion")
 			podDeleted = true
 		} else {
@@ -86,7 +106,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	logReq.V(5).Info("pod found")
 
 	// Check if the resource has already been cached.
-	if pRes, ok = pc.Cache.Get(req.String()); !ok {
+	if pRes, ok = pc.cache.Get(req.String()); !ok {
 		// If first time, then we just create a new cache entry for it.
 		logReq.V(3).Info("never met this resource in my life")
 		pRes = events.NewResource(resource.Pod, string(pod.UID))
@@ -131,20 +151,20 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		switch evt.Type() {
 		case "Added":
 			// Perform actions for "Added" events.
-			generatedEvents.WithLabelValues(pc.Name, labelCreate).Inc()
+			pc.createCounter.Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
-			pc.Cache.Add(req.String(), pRes)
+			pc.cache.Add(req.String(), pRes)
 			pc.triggerOwnersOnCreateEvent(pRes)
 		case "Modified":
-			generatedEvents.WithLabelValues(pc.Name, labelUpdate).Inc()
-			pc.Cache.Update(req.String(), pRes)
+			pc.updateCounter.Inc()
+			pc.cache.Update(req.String(), pRes)
 		case "Deleted":
-			generatedEvents.WithLabelValues(pc.Name, labelDelete).Inc()
+			pc.deleteCounter.Inc()
 			pc.triggerOwnersOnDeleteEvent(pRes)
-			pc.Cache.Delete(req.String())
+			pc.cache.Delete(req.String())
 		}
 		// Add event to the queue.
-		pc.Queue.Push(evt)
+		pc.queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -292,7 +312,7 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.Resource) {
 	refs := evt.GetResourceReferences()
 	for kind, refs := range refs {
-		ch, ok := pc.ExternalSources[kind]
+		ch, ok := pc.ownersSources[kind]
 		if !ok {
 			continue
 		}
@@ -305,7 +325,7 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.Resource) {
 					obj = NewPartialObjectMetadata(kind, &name)
 				}
 				if obj != nil {
-					ch <- event2.GenericEvent{Object: obj}
+					ch <- event.GenericEvent{Object: obj}
 				}
 			}(ref.Name, kind)
 		}
@@ -315,7 +335,7 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.Resource) {
 func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.Resource) {
 	refs := evt.GetResourceReferences()
 	for kind, refs := range refs {
-		ch, ok := pc.ExternalSources[kind]
+		ch, ok := pc.ownersSources[kind]
 		if !ok {
 			continue
 		}
@@ -327,7 +347,7 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.Resource) {
 					obj = NewPartialObjectMetadata(kind, &name)
 				}
 				if obj != nil {
-					ch <- event2.GenericEvent{Object: obj}
+					ch <- event.GenericEvent{Object: obj}
 				}
 			}(ref.Name, kind)
 		}
@@ -338,20 +358,11 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.Resource) {
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (pc *PodCollector) Start(ctx context.Context) error {
-	return dispatch(ctx, pc.logger, pc.SubscriberChan, pc.Queue, pc.Cache)
-}
-
-// initMetrics initializes the custom metrics for the pod collector.
-func (pc *PodCollector) initMetrics() {
-	generatedEvents.WithLabelValues(pc.Name, labelCreate).Add(0)
-	generatedEvents.WithLabelValues(pc.Name, labelUpdate).Add(0)
-	generatedEvents.WithLabelValues(pc.Name, labelDelete).Add(0)
+	return dispatch(ctx, pc.logger, pc.subscriberChan, pc.queue, pc.cache)
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
-	pc.initMetrics()
-
 	nodeNameFilter := func(obj client.Object) bool {
 		// Check if the object is a pod.
 		p, ok := obj.(*corev1.Pod)
@@ -366,18 +377,18 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 		return false
 	}
 	// Set the generic logger to be used in other function then the reconcile loop.
-	pc.logger = mgr.GetLogger().WithName(pc.Name)
+	pc.logger = mgr.GetLogger().WithName(pc.name)
 
-	lc, err := newLogConstructor(mgr.GetLogger(), pc.Name, resource.Pod)
+	lc, err := newLogConstructor(mgr.GetLogger(), pc.name, resource.Pod)
 	if err != nil {
 		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{},
-			builder.WithPredicates(predicatesWithMetrics(pc.Name, apiServerSource, nodeNameFilter))).
-		Watches(pc.EndpointsSource, &handler.EnqueueRequestForObject{},
-			builder.WithPredicates(predicatesWithMetrics(pc.Name, resource.EndpointSlice, nil))).
+			builder.WithPredicates(predicatesWithMetrics(pc.name, apiServerSource, nodeNameFilter))).
+		Watches(pc.endpointsSource, &handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(pc.name, resource.EndpointSlice, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
 		Complete(pc)
 }
