@@ -158,8 +158,6 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 			// Perform actions for "Added" events.
 			r.createCounter.Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
-			// Please keep in mind that Cache operations resets the state of the resource, such as
-			// resetting the info needed to generate the events.
 			r.cache.Add(req.String(), res)
 		case events.Modified:
 			// Run specific code for "Modified" events.

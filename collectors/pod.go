@@ -133,8 +133,6 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			// Perform actions for "Added" events.
 			generatedEvents.WithLabelValues(pc.Name, labelCreate).Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
-			// Please keep in mind that Cache operations resets the state of the resource, such as
-			// resetting the info needed to generate the events.
 			pc.Cache.Add(req.String(), pRes)
 			pc.triggerOwnersOnCreateEvent(pRes)
 		case "Modified":
