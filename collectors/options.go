@@ -20,32 +20,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-type objectMetaOptions struct {
+type collectorOptions struct {
 	externalSource    source.Source
 	subscriberChan    <-chan string
 	podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption
 }
 
-// ObjectMetaOption function used to set options when creating a new meta collector.
-type ObjectMetaOption func(opt *objectMetaOptions)
+// CollectorOption function used to set options when creating a new meta collector.
+type CollectorOption func(opt *collectorOptions)
 
 // WithExternalSource configure external sources that could trigger the reconcile loop of the collector.
-func WithExternalSource(src source.Source) ObjectMetaOption {
-	return func(opt *objectMetaOptions) {
+func WithExternalSource(src source.Source) CollectorOption {
+	return func(opt *collectorOptions) {
 		opt.externalSource = src
 	}
 }
 
 // WithSubscribersChan configures the subscriber channel.
-func WithSubscribersChan(sChan <-chan string) ObjectMetaOption {
-	return func(opt *objectMetaOptions) {
+func WithSubscribersChan(sChan <-chan string) CollectorOption {
+	return func(opt *collectorOptions) {
 		opt.subscriberChan = sChan
 	}
 }
 
 // WithPodMatchingFields configures the field selector used in the list operations.
-func WithPodMatchingFields(podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption) ObjectMetaOption {
-	return func(opt *objectMetaOptions) {
+func WithPodMatchingFields(podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption) CollectorOption {
+	return func(opt *collectorOptions) {
 		opt.podMatchingFields = podMatchingFields
 	}
 }
