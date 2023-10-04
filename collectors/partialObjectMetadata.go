@@ -252,7 +252,7 @@ func (r *ObjectMetaCollector) SetupWithManager(mgr ctrl.Manager) error {
 		WithOptions(controller.Options{LogConstructor: lc})
 
 	if r.externalSource != nil {
-		bld.Watches(r.externalSource,
+		bld.WatchesRawSource(r.externalSource,
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(predicatesWithMetrics(r.name, resource.Pod, nil)))
 	}

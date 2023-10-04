@@ -235,7 +235,7 @@ func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
 		For(&corev1.Service{},
 			builder.WithPredicates(predicatesWithMetrics(r.name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		Watches(r.endpointsSource,
+		WatchesRawSource(r.endpointsSource,
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(predicatesWithMetrics(r.name, resource.Endpoints, nil))).
 		Owns(&discoveryv1.EndpointSlice{},

@@ -387,7 +387,7 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{},
 			builder.WithPredicates(predicatesWithMetrics(pc.name, apiServerSource, nodeNameFilter))).
-		Watches(pc.endpointsSource, &handler.EnqueueRequestForObject{},
+		WatchesRawSource(pc.endpointsSource, &handler.EnqueueRequestForObject{},
 			builder.WithPredicates(predicatesWithMetrics(pc.name, resource.EndpointSlice, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
 		Complete(pc)
