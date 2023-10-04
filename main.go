@@ -26,12 +26,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/alacuku/k8s-metadata/broker"
@@ -74,31 +76,41 @@ func main() {
 	setupLog := ctrl.Log.WithName("setup")
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
 		HealthProbeBindAddress: probeAddr,
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			UnsafeDisableDeepCopyByObject: map[client.Object]bool{
-				&corev1.Pod{}:                   true,
-				&corev1.Namespace{}:             true,
-				&corev1.ReplicationController{}: true,
-				&v1.Deployment{}:                true,
-				&v1.ReplicaSet{}:                true,
-				&v1.DaemonSet{}:                 true,
+		Cache: cache.Options{
+			DefaultUnsafeDisableDeepCopy: ptr.To(true),
+			ByObject: map[client.Object]cache.ByObject{
+				&corev1.Pod{}: {
+					Transform: collectors.PodTransformer(setupLog),
+				},
+				&corev1.Service{}: {
+					Transform: collectors.ServiceTransformer(setupLog),
+				},
+				&corev1.Namespace{}: {
+					Transform: collectors.PartialObjectTransformer(setupLog),
+				},
+				&corev1.ReplicationController{}: {
+					Transform: collectors.PartialObjectTransformer(setupLog),
+				},
+				&v1.Deployment{}: {
+					Transform: collectors.PartialObjectTransformer(setupLog),
+				},
+				&v1.ReplicaSet{}: {
+					Transform: collectors.PartialObjectTransformer(setupLog),
+				},
+				&v1.DaemonSet{}: {
+					Transform: collectors.PartialObjectTransformer(setupLog),
+				},
+				&discoveryv1.EndpointSlice{}: {
+					Transform: collectors.EndpointsliceTransformer(setupLog),
+				},
 			},
-			TransformByObject: cache.TransformByObject{
-				&corev1.Pod{}:                collectors.PodTransformer(setupLog),
-				&corev1.Service{}:            collectors.ServiceTransformer(setupLog),
-				&corev1.Namespace{}:          collectors.PartialObjectTransformer(setupLog),
-				&v1.Deployment{}:             collectors.PartialObjectTransformer(setupLog),
-				&v1.ReplicaSet{}:             collectors.PartialObjectTransformer(setupLog),
-				&v1.DaemonSet{}:              collectors.PartialObjectTransformer(setupLog),
-				&discoveryv1.EndpointSlice{}: collectors.EndpointsliceTransformer(setupLog),
-			},
-		}),
+		},
 	})
-
 	if err != nil {
 		setupLog.Error(err, "creating manager")
 		os.Exit(1)
