@@ -12,7 +12,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: meta-collector
-  namespace: system
+  namespace: meta-collector
   labels:
     app.kubernetes.io/name: deployment
     app.kubernetes.io/instance: meta-collector
@@ -36,10 +36,7 @@ spec:
         runAsNonRoot: true
       containers:
         - command:
-            - /manager
-          args:
-            - --node-name
-            - "$(NODE_NAME)"
+            - /meta-collector
           env:
             - name: NODE_NAME
               valueFrom:
@@ -52,7 +49,7 @@ spec:
               name: "health-probe"
             - containerPort: 45000
               name: "broker-grpc"
-          image: k8s-meta-collector:latest
+          image: aldokcl/k8s-meta-collector:latest
           name: manager
           securityContext:
             allowPrivilegeEscalation: false
@@ -97,31 +94,18 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  app.kubernetes.io/name: clusterrole
-  app.kubernetes.io/instance: meta-collector
-  app.kubernetes.io/component: meta-collector
-  app.kubernetes.io/created-by: manifests
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: meta-collector
+    app.kubernetes.io/component: meta-collector
+    app.kubernetes.io/created-by: manifests
   name: meta-collector-role
 rules:
   - apiGroups:
       - apps
     resources:
       - daemonsets
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - apps
-    resources:
       - deployments
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - apps
-    resources:
       - replicasets
     verbs:
       - get
@@ -131,37 +115,9 @@ rules:
       - ""
     resources:
       - endpoints
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
       - namespaces
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
       - pods
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
       - replicationcontrollers
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
       - services
     verbs:
       - get
@@ -193,3 +149,28 @@ subjects:
   - kind: ServiceAccount
     name: meta-collector
     namespace: meta-collector
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: service
+    app.kubernetes.io/instance: meta-collector
+    app.kubernetes.io/component: meta-collector
+    app.kubernetes.io/created-by: manifests
+  name: meta-collector
+  namespace: meta-collector
+spec:
+  ports:
+    - name: metrics
+      port: 8080
+      protocol: TCP
+    - name: health-probe
+      port: 8081
+      protocol: TCP
+    - name: broker-grpc
+      port: 45000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: meta-collector
+    app.kubernetes.io/component: meta-collector
