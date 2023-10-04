@@ -1,0 +1,21 @@
+# Prometheus Monitor Service (Metrics)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/name: servicemonitor
+    app.kubernetes.io/instance: meta-collector
+    app.kubernetes.io/component: meta-collector
+    app.kubernetes.io/created-by: manifests
+    # TODO(user): Configure the label in order to be scraped by prometheus
+    # release: kube-prometheus-stack
+  name: meta-collector-metrics-monitor
+  namespace: meta-collector
+spec:
+  endpoints:
+    - path: /metrics
+      port: "metrics"
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: meta-collector
+      app.kubernetes.io/component: meta-collector
