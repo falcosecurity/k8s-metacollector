@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	"github.com/alacuku/k8s-metadata/pkg/consts"
 	"github.com/alacuku/k8s-metadata/pkg/events"
 )
 
@@ -38,6 +39,7 @@ var (
 	// latency is a prometheus metric which keeps track of the duration
 	// of sending events from collectors to the message broker.
 	latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: consts.MetricsNamespace,
 		Subsystem: brokerQueueSubsystem,
 		Name:      queueLatencyKey,
 		Help:      "How long in seconds an event stays in the queue before being requested.",
@@ -45,6 +47,7 @@ var (
 	}, []string{"name"})
 
 	adds = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: consts.MetricsNamespace,
 		Subsystem: brokerQueueSubsystem,
 		Name:      addsKey,
 		Help:      "Total number of events handled by the queue",

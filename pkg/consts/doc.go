@@ -12,29 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadata
-
-import (
-	"github.com/prometheus/client_golang/prometheus"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
-
-	"github.com/alacuku/k8s-metadata/pkg/consts"
-)
-
-const (
-	serverSubsystem = "server"
-	subscribersKey  = "subscribers"
-)
-
-var (
-	subscribers = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: consts.MetricsNamespace,
-		Subsystem: serverSubsystem,
-		Name:      subscribersKey,
-		Help:      "Number of subscribers.",
-	})
-)
-
-func init() {
-	ctrlmetrics.Registry.MustRegister(subscribers)
-}
+// Package consts provides constants used across the project.
+package consts

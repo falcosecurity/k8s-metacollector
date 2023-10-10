@@ -236,20 +236,27 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "Number of subscribers",
       "fieldConfig": {
         "defaults": {
           "color": {
             "fixedColor": "blue",
-            "mode": "palette-classic"
+            "mode": "fixed"
           },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": []
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -259,19 +266,9 @@
         "x": 0,
         "y": 8
       },
-      "id": 23,
+      "id": 41,
       "options": {
-        "displayLabels": [],
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "values": [
-            "value",
-            "percent"
-          ]
-        },
-        "pieType": "pie",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -279,10 +276,8 @@
           "fields": "",
           "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
       },
       "pluginVersion": "9.5.1",
       "targets": [
@@ -292,14 +287,14 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum by(controller) (controller_runtime_reconcile_total{pod=\"$pod\", namespace=\"$namespace\"})",
+          "expr": "meta_collector_server_subscribers{namespace=\"$namespace\", pod=\"$pod\", job=\"$job\"}",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Reconciles Per collector",
-      "type": "piechart"
+      "title": "Subscribers",
+      "type": "gauge"
     },
     {
       "datasource": {
@@ -364,7 +359,7 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum by(type) (broker_queue_adds{pod=\"$pod\", namespace=\"$namespace\"})",
+          "expr": "sum by(type) (meta_collector_broker_queue_adds{pod=\"$pod\", namespace=\"$namespace\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -378,22 +373,20 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Events sents to libs showed per collector.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "fixedColor": "blue",
+            "mode": "palette-classic"
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
         },
         "overrides": []
       },
@@ -403,12 +396,19 @@
         "x": 0,
         "y": 16
       },
-      "id": 17,
+      "id": 23,
       "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
+        "displayLabels": [],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "pie",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -416,8 +416,10 @@
           "fields": "",
           "values": false
         },
-        "showUnfilled": true,
-        "valueMode": "color"
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "pluginVersion": "9.5.1",
       "targets": [
@@ -427,14 +429,14 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum by(name) (collector_event_subscribers_sent{pod=\"$pod\", namespace=\"$namespace\"})",
+          "expr": "sum by(controller) (controller_runtime_reconcile_total{pod=\"$pod\", namespace=\"$namespace\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Events Per Collector",
-      "type": "bargauge"
+      "title": "Reconciles Per collector",
+      "type": "piechart"
     },
     {
       "datasource": {
@@ -492,7 +494,7 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum by(job) (collector_event_subscribers_sent{pod=\"$pod\", namespace=\"$namespace\"})",
+          "expr": "sum by(job) (meta_collector_collector_event_subscribers_sent{pod=\"$pod\", namespace=\"$namespace\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -506,11 +508,11 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "Events sents to libs showed per collector.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "semi-dark-orange",
-            "mode": "fixed"
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
@@ -531,7 +533,7 @@
         "x": 0,
         "y": 24
       },
-      "id": 24,
+      "id": 17,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -555,13 +557,13 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum by(name) (collector_event_api_server_received{pod=\"$pod\", namespace=\"$namespace\", source=\"api-server\"})",
+          "expr": "sum by(name) (meta_collector_collector_event_subscribers_sent{pod=\"$pod\", namespace=\"$namespace\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Events From Api Server Per collector",
+      "title": "Events Per Collector",
       "type": "bargauge"
     },
     {
@@ -620,7 +622,7 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum(collector_event_api_server_received{pod=\"$pod\", namespace=\"$namespace\", source=\"api-server\"})",
+          "expr": "sum(meta_collector_collector_event_api_server_received{pod=\"$pod\", namespace=\"$namespace\", source=\"api-server\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -634,41 +636,11 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "How long in seconds an item stays in workqueue before being requested",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "fixedColor": "semi-dark-orange",
+            "mode": "fixed"
           },
           "mappings": [],
           "thresholds": {
@@ -677,103 +649,50 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "P99 pod 10.16.0.37:8080 "
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
               }
             ]
           }
-        ]
+        },
+        "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 12,
         "x": 0,
         "y": 32
       },
-      "id": 30,
+      "id": 24,
       "options": {
-        "legend": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
           "calcs": [
-            "max",
-            "mean"
+            "lastNotNull"
           ],
-          "displayMode": "list",
-          "placement": "right",
-          "showLegend": true
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showUnfilled": true,
+        "valueMode": "color"
       },
+      "pluginVersion": "9.5.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "exemplar": true,
-          "expr": "histogram_quantile(0.50, sum(rate(workqueue_queue_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
-          "interval": "",
-          "legendFormat": "P50 {{name}} {{instance}} ",
+          "editorMode": "builder",
+          "expr": "sum by(name) (meta_collector_collector_event_api_server_received{pod=\"$pod\", namespace=\"$namespace\", source=\"api-server\"})",
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "exemplar": true,
-          "expr": "histogram_quantile(0.90, sum(rate(workqueue_queue_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "P90 {{name}} {{instance}} ",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "exemplar": true,
-          "expr": "histogram_quantile(0.99, sum(rate(workqueue_queue_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "P99 {{name}} {{instance}} ",
-          "refId": "C"
         }
       ],
-      "title": "Seconds For Items Stay In Queue (before being requested) (P50, P90, P99)",
-      "type": "timeseries"
+      "title": "Events From Api Server Per collector",
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -840,7 +759,7 @@
               "options": {
                 "mode": "exclude",
                 "names": [
-                  "P90  10.16.0.37:8080 "
+                  "P50 blockingChannel 10.16.1.4:8080 "
                 ],
                 "prefix": "All except:",
                 "readOnly": true
@@ -889,7 +808,7 @@
           },
           "editorMode": "builder",
           "exemplar": true,
-          "expr": "histogram_quantile(0.5, sum by(instance, name, le) (rate(broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by(instance, name, le) (rate(meta_collector_broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
           "interval": "",
           "legendFormat": "P50 {{name}} {{instance}} ",
           "range": true,
@@ -925,152 +844,6 @@
         }
       ],
       "title": "Seconds For Items Stay In Broker Queue (before being proccesed) (P50, P90, P99)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "How long in seconds processing an item from workqueue takes.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "P90 pod 10.16.0.37:8080 "
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 39
-      },
-      "id": 29,
-      "options": {
-        "legend": {
-          "calcs": [
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "exemplar": true,
-          "expr": "histogram_quantile(0.50, sum(rate(workqueue_work_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
-          "interval": "",
-          "legendFormat": "P50 {{name}} {{instance}} ",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "exemplar": true,
-          "expr": "histogram_quantile(0.90, sum(rate(workqueue_work_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "P90 {{name}} {{instance}} ",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "exemplar": true,
-          "expr": "histogram_quantile(0.99, sum(rate(workqueue_work_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "P99 {{name}} {{instance}} ",
-          "refId": "C"
-        }
-      ],
-      "title": "Seconds Processing Items From WorkQueue (P50, P90, P99)",
       "type": "timeseries"
     },
     {
@@ -1172,10 +945,11 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "How long in seconds an item stays in workqueue before being requested",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-GrYlRd"
+            "mode": "palette-classic"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -1184,15 +958,15 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "scheme",
+            "fillOpacity": 10,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "smooth",
-            "lineWidth": 3,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -1201,7 +975,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -1221,7 +995,7 @@
               }
             ]
           },
-          "unit": "ops"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -1229,14 +1003,17 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 40
       },
-      "id": 33,
+      "id": 30,
       "options": {
         "legend": {
-          "calcs": [],
+          "calcs": [
+            "max",
+            "mean"
+          ],
           "displayMode": "list",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -1244,7 +1021,6 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "8.4.3",
       "targets": [
         {
           "datasource": {
@@ -1252,13 +1028,37 @@
             "uid": "prometheus"
           },
           "exemplar": true,
-          "expr": "sum(rate(workqueue_adds_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name)",
+          "expr": "histogram_quantile(0.50, sum(rate(workqueue_queue_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
           "interval": "",
-          "legendFormat": "{{name}} {{instance}}",
+          "legendFormat": "P50 {{name}} {{instance}} ",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "histogram_quantile(0.90, sum(rate(workqueue_queue_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "P90 {{name}} {{instance}} ",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "histogram_quantile(0.99, sum(rate(workqueue_queue_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "P99 {{name}} {{instance}} ",
+          "refId": "C"
         }
       ],
-      "title": "Work Queue Add Rate",
+      "title": "Seconds For Items Stay In Queue (before being requested) (P50, P90, P99)",
       "type": "timeseries"
     },
     {
@@ -1362,6 +1162,127 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "How long in seconds processing an item from workqueue takes.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 47
+      },
+      "id": 29,
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "histogram_quantile(0.50, sum(rate(workqueue_work_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
+          "interval": "",
+          "legendFormat": "P50 {{name}} {{instance}} ",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "histogram_quantile(0.90, sum(rate(workqueue_work_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "P90 {{name}} {{instance}} ",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "histogram_quantile(0.99, sum(rate(workqueue_work_duration_seconds_bucket{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name, le))",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "P99 {{name}} {{instance}} ",
+          "refId": "C"
+        }
+      ],
+      "title": "Seconds Processing Items From WorkQueue (P50, P90, P99)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "description": "Total number of reconciliations per controller",
       "fieldConfig": {
         "defaults": {
@@ -1419,7 +1340,7 @@
       "gridPos": {
         "h": 7,
         "w": 12,
-        "x": 7,
+        "x": 12,
         "y": 53
       },
       "id": 31,
@@ -1452,6 +1373,100 @@
       ],
       "title": "Total Reconciliation Count Per Controller",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 3,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "id": 33,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "sum(rate(workqueue_adds_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name)",
+          "interval": "",
+          "legendFormat": "{{name}} {{instance}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Work Queue Add Rate",
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
@@ -1470,14 +1485,14 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(controller_runtime_reconcile_total,namespace)",
+        "definition": "label_values(meta_collector_server_subscribers,namespace)",
         "hide": 0,
         "includeAll": false,
         "multi": false,
         "name": "namespace",
         "options": [],
         "query": {
-          "query": "label_values(controller_runtime_reconcile_total,namespace)",
+          "query": "label_values(meta_collector_server_subscribers,namespace)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -1489,21 +1504,21 @@
       {
         "current": {
           "selected": false,
-          "text": "meta-collector-6b55c5f7c4-vzpp4",
-          "value": "meta-collector-6b55c5f7c4-vzpp4"
+          "text": "meta-collector-89946bc6c-ntlzj",
+          "value": "meta-collector-89946bc6c-ntlzj"
         },
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(collector_event_subscribers_sent{namespace=~\"$namespace\"},pod)",
+        "definition": "label_values(meta_collector_server_subscribers{namespace=~\"$namespace\"},pod)",
         "hide": 0,
         "includeAll": false,
         "multi": false,
         "name": "pod",
         "options": [],
         "query": {
-          "query": "label_values(collector_event_subscribers_sent{namespace=~\"$namespace\"},pod)",
+          "query": "label_values(meta_collector_server_subscribers{namespace=~\"$namespace\"},pod)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -1548,6 +1563,6 @@
   "timezone": "",
   "title": "Falco Meta Collector",
   "uid": "T0NvRcb4z",
-  "version": 12,
+  "version": 4,
   "weekStart": ""
 }
