@@ -23,9 +23,18 @@ import (
 // Connection used to track a subscriber connection. Each time a subscriber arrives a
 // Connection is created and stored for later use by the Broker.
 type Connection struct {
-	Error    chan error
+	error    chan error
+	once     *sync.Once
 	Stream   Metadata_WatchServer
 	Selector *Selector
+}
+
+// Close closes the connection. It makes sure that the close is done only once to avoid
+// deadlocks.
+func (c *Connection) Close(err error) {
+	c.once.Do(func() {
+		c.error <- err
+	})
 }
 
 // Server grpc server started by the broker that listens for new connections from subscribers.
@@ -52,29 +61,32 @@ func New(logger logr.Logger, subs *sync.Map, collectors map[string]chan<- string
 // metadata to the subscriber for each watched resource.
 func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 	var err error
+	var connection Connection
 	s.logger.Info("received watch request", "subscriber", selector.NodeName)
-	errorChan := make(chan error)
+	errorChan := make(chan error, 1)
 
 	// Check if the client subscribed previously.
-	_, ok := s.subscribers.Load(selector.NodeName)
+	c, ok := s.subscribers.Load(selector.NodeName)
 	if ok {
-		s.logger.Info("ignoring subscription since a subscriber already exists", "name", selector.NodeName)
-		return nil
+		con := c.(Connection)
+		// Close the existing watch.
+		s.logger.Info("closing existing watch", "subscriber", selector.NodeName)
+		con.Close(nil)
 	}
-
-	s.subscribers.Store(selector.NodeName, Connection{
-		Error:    errorChan,
+	connection = Connection{
+		error:    errorChan,
 		Stream:   stream,
 		Selector: selector,
-	})
+	}
+	s.subscribers.Store(selector.NodeName, connection)
 
-	s.logger.V(5).Info("starting initial event sync", "subscriber", selector.NodeName)
+	s.logger.Info("starting initial event sync", "subscriber", selector.NodeName)
 	for resource, filter := range selector.ResourceKinds {
-		s.logger.V(5).Info("dispatching initial sync", "subscriber", selector.NodeName, "resource", resource, "selector", filter)
+		s.logger.Info("dispatching initial sync", "subscriber", selector.NodeName, "resource", resource, "selector", filter)
 		if collector, ok := s.collectors[resource]; ok {
 			collector <- selector.NodeName
 		}
-		s.logger.V(5).Info("initial sync correctly dispatched", "subscriber", selector.NodeName, "resource", resource, "selector", filter)
+		s.logger.Info("initial sync correctly dispatched", "subscriber", selector.NodeName, "resource", resource, "selector", filter)
 	}
 
 	// Add the connection to waiting group.
@@ -89,6 +101,9 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 		s.logger.Error(err, "closing connection", "subscriber", selector.NodeName)
 	}
 
-	s.subscribers.Delete(selector.NodeName)
+	s.logger.Info("stream deleted", "subscriber", selector.NodeName)
+
+	_ = s.subscribers.CompareAndDelete(selector.NodeName, connection)
+
 	return err
 }
