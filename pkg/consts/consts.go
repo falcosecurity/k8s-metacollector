@@ -12,29 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadata
-
-import (
-	"github.com/prometheus/client_golang/prometheus"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
-
-	"github.com/alacuku/k8s-metadata/pkg/consts"
-)
+package consts
 
 const (
-	serverSubsystem = "server"
-	subscribersKey  = "subscribers"
+	// MetricsNamespace namespace all the metrics exposed by the meta-collector.
+	MetricsNamespace = "meta_collector"
 )
-
-var (
-	subscribers = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: consts.MetricsNamespace,
-		Subsystem: serverSubsystem,
-		Name:      subscribersKey,
-		Help:      "Number of subscribers.",
-	})
-)
-
-func init() {
-	ctrlmetrics.Registry.MustRegister(subscribers)
-}
