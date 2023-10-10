@@ -214,7 +214,13 @@ func (r *ObjectMetaCollector) ObjFieldsHandler(logger logr.Logger, evt *events.R
 // Nodes returns all the nodes where pods related to the current deployment are running.
 func (r *ObjectMetaCollector) Nodes(ctx context.Context, logger logr.Logger, meta *metav1.ObjectMeta) (fields.Nodes, error) {
 	pods := corev1.PodList{}
-	err := r.List(ctx, &pods, client.InNamespace(meta.Namespace), r.podMatchingFields(meta))
+	var namespace string
+	if r.resource.Kind == resource.Namespace {
+		namespace = meta.Name
+	} else {
+		namespace = meta.Namespace
+	}
+	err := r.List(ctx, &pods, client.InNamespace(namespace), r.podMatchingFields(meta))
 
 	if err != nil {
 		logger.Error(err, "unable to list pods related to resource", "in namespace", meta.Namespace)
