@@ -104,7 +104,6 @@ func (br *Broker) Start(ctx context.Context) error {
 				// Get the grpc stream for the subscriber.
 				c, ok := br.subscribers.Load(node)
 				if !ok {
-					br.logger.Info("no stream found for", "node", node)
 					continue
 				}
 				con, ok := c.(metadata.Connection)
@@ -112,9 +111,8 @@ func (br *Broker) Start(ctx context.Context) error {
 					br.logger.Error(fmt.Errorf("failed to cast subscriber connection %T", con), "node", node)
 					continue
 				}
-
 				if err := con.Stream.Send(evt.GRPCMessage()); err != nil {
-					con.Error <- err
+					con.Close(err)
 				}
 			}
 		}
