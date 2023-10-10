@@ -79,7 +79,7 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 		Selector: selector,
 	}
 	s.subscribers.Store(selector.NodeName, connection)
-
+	subscribers.Inc()
 	s.logger.Info("starting initial event sync", "subscriber", selector.NodeName)
 	for resource, filter := range selector.ResourceKinds {
 		s.logger.Info("dispatching initial sync", "subscriber", selector.NodeName, "resource", resource, "selector", filter)
@@ -104,6 +104,6 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 	s.logger.Info("stream deleted", "subscriber", selector.NodeName)
 
 	_ = s.subscribers.CompareAndDelete(selector.NodeName, connection)
-
+	subscribers.Dec()
 	return err
 }
