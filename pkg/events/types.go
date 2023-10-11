@@ -90,23 +90,23 @@ func (g *Resource) SetStatus(status string) {
 	}
 }
 
-// SetCreatedFor sets the nodes for which this resource needs to generate an "Added" event.
+// SetCreatedFor sets the nodes for which this resource needs to generate an "Create" event.
 func (g *Resource) SetCreatedFor(nodes []string) {
 	g.addedFor = nodes
 }
 
-// SetModifiedFor sets the nodes for which this resource needs to generate a "Modified" event.
+// SetModifiedFor sets the nodes for which this resource needs to generate a "Update" event.
 func (g *Resource) SetModifiedFor(nodes []string) {
 	g.modifiedFor = nodes
 }
 
-// SetDeletedFor sets the nodes for which this resource need to generate a "Deleted" event.
+// SetDeletedFor sets the nodes for which this resource need to generate a "Delete" event.
 func (g *Resource) SetDeletedFor(nodes []string) {
 	g.deletedFor = nodes
 }
 
 // AddNodes populates the nodes to which the events need to be sent, starting from the given nodes and the provided flag.
-// The starting point is the cached nodes to which we already know that we have sent at least an "Added" event. From the
+// The starting point is the cached nodes to which we already know that we have sent at least an "Create" event. From the
 // cached nodes and the passed ones it generates the nodes to which we need to send an event and saves them in the appropriate
 // field, i.e. Resource.addedFor, Resource.modifiedFor and Resource.deletedFor. Note that the updated
 // flag is set to true if the mutable fields for the resource has been updated. At the same time the Resource.nodes field is updated
@@ -234,7 +234,7 @@ func (g *Resource) ToEvents() []Event {
 	if len(g.addedFor) != 0 {
 		evts[0] = &GenericEvent{
 			Event: &metadata.Event{
-				Reason: Added,
+				Reason: Create,
 				Uid:    g.uid,
 				Kind:   g.kind,
 				Meta:   meta,
@@ -250,7 +250,7 @@ func (g *Resource) ToEvents() []Event {
 	if len(g.modifiedFor) != 0 {
 		evts[1] = &GenericEvent{
 			Event: &metadata.Event{
-				Reason: Modified,
+				Reason: Update,
 				Uid:    g.uid,
 				Kind:   g.kind,
 				Meta:   meta,
@@ -266,7 +266,7 @@ func (g *Resource) ToEvents() []Event {
 	if len(g.deletedFor) != 0 {
 		evts[2] = &GenericEvent{
 			Event: &metadata.Event{
-				Reason: Deleted,
+				Reason: Delete,
 				Uid:    g.uid,
 				Kind:   g.kind,
 			},
@@ -296,10 +296,10 @@ func (g *Resource) ToEvent(reason string, nodes []string) Event {
 	}
 
 	switch reason {
-	case Added:
+	case Create:
 		evt = &GenericEvent{
 			Event: &metadata.Event{
-				Reason: Added,
+				Reason: Create,
 				Uid:    g.uid,
 				Kind:   g.kind,
 				Meta:   meta,
@@ -309,10 +309,10 @@ func (g *Resource) ToEvent(reason string, nodes []string) Event {
 			},
 			DestinationNodes: nodes,
 		}
-	case Modified:
+	case Update:
 		evt = &GenericEvent{
 			Event: &metadata.Event{
-				Reason: Modified,
+				Reason: Update,
 				Uid:    g.uid,
 				Kind:   g.kind,
 				Meta:   meta,
@@ -322,10 +322,10 @@ func (g *Resource) ToEvent(reason string, nodes []string) Event {
 			},
 			DestinationNodes: nodes,
 		}
-	case Deleted:
+	case Delete:
 		evt = &GenericEvent{
 			Event: &metadata.Event{
-				Reason: Deleted,
+				Reason: Delete,
 				Uid:    g.uid,
 				Kind:   g.kind,
 			},

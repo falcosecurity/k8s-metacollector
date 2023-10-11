@@ -114,7 +114,7 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Get all the nodes to which this resource is related.
 	// The currentNodes are used to compute to which nodes we need to send an event
-	// and of which type, Added, Deleted or Modified.
+	// and of which type, Create, Delete or Update.
 	currentNodes, err := r.Nodes(ctx, logger, &r.resource.ObjectMeta)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -135,7 +135,7 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		res.AddNodes(currentNodes.ToSlice())
 	} else {
-		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
+		// If the resource has been deleted from the api-server, then we send a "Delete" event to all nodes
 		nodes := res.GetNodes()
 		res.DeleteNodes(nodes.ToSlice())
 	}
@@ -149,15 +149,15 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 			continue
 		}
 		switch evt.Type() {
-		case events.Added:
-			// Perform actions for "Added" events.
-			// For each resource that generates an "Added" event, we need to add it to the cache.
+		case events.Create:
+			// Perform actions for "Create" events.
+			// For each resource that generates an "Create" event, we need to add it to the cache.
 			r.cache.Add(req.String(), res)
-		case events.Modified:
-			// Run specific code for "Modified" events.
+		case events.Update:
+			// Run specific code for "Update" events.
 			r.cache.Update(req.String(), res)
-		case events.Deleted:
-			// Run specific code for "Deleted" events.
+		case events.Delete:
+			// Run specific code for "Delete" events.
 			r.cache.Delete(req.String())
 		}
 		// Add event to the queue.
