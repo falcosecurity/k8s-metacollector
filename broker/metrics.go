@@ -80,14 +80,14 @@ func newMetrics(name string) *metrics {
 	updateCounter.Add(0)
 	deleteCounter := adds.WithLabelValues(name, deleteLabel)
 	deleteCounter.Add(0)
-	lattencyObserver := latency.WithLabelValues(name)
+	latencyObserver := latency.WithLabelValues(name)
 
 	return &metrics{
 		Mutex:           sync.Mutex{},
 		addCounter:      addCounter,
 		updateCounter:   updateCounter,
 		deleteCounter:   deleteCounter,
-		latencyObserver: lattencyObserver,
+		latencyObserver: latencyObserver,
 		sentTimes:       make(map[interface{}]time.Time),
 	}
 }

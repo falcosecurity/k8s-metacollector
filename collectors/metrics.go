@@ -119,7 +119,7 @@ func predicatesWithMetrics(collectorName, sourceName string, filter func(object 
 	}
 }
 
-func newGeneratedEventsMetcrics(name string) generatedEventsMetrics {
+func newGeneratedEventsMetrics(name string) generatedEventsMetrics {
 	createCounter := generatedEvents.WithLabelValues(name, labelCreate)
 	createCounter.Add(0)
 	updateCounter := generatedEvents.WithLabelValues(name, labelDelete)

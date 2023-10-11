@@ -50,7 +50,7 @@ func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string, o
 	}
 
 	// They should be both set, but here we prefer to return an error so the user knows that one of the paths
-	// is missing rather then explicitly validating the file paths.
+	// is missing rather than explicitly validating the file paths.
 	if opts.tlsServerKeyFilePath != "" || opts.tlsServerCertFilePath != "" {
 		creds, err := credentials.NewServerTLSFromFile(opts.tlsServerCertFilePath, opts.tlsServerKeyFilePath)
 		if err != nil {
