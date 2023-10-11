@@ -77,6 +77,7 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 		error:    errorChan,
 		Stream:   stream,
 		Selector: selector,
+		once:     &sync.Once{},
 	}
 	s.subscribers.Store(selector.NodeName, connection)
 	subscribers.Inc()
