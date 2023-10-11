@@ -47,7 +47,6 @@ type ServiceCollector struct {
 	name            string
 	subscriberChan  <-chan string
 	logger          logr.Logger
-	generatedEventsMetrics
 }
 
 // NewServiceCollector returns a new service collector.
@@ -58,13 +57,12 @@ func NewServiceCollector(cl client.Client, queue broker.Queue, cache *events.Cac
 	}
 
 	return &ServiceCollector{
-		Client:                 cl,
-		queue:                  queue,
-		cache:                  cache,
-		endpointsSource:        opts.externalSource,
-		name:                   name,
-		subscriberChan:         opts.subscriberChan,
-		generatedEventsMetrics: newGeneratedEventsMetrics(name),
+		Client:          cl,
+		queue:           queue,
+		cache:           cache,
+		endpointsSource: opts.externalSource,
+		name:            name,
+		subscriberChan:  opts.subscriberChan,
 	}
 }
 
@@ -136,16 +134,13 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		switch evt.Type() {
 		case events.Added:
 			// Perform actions for "Added" events.
-			r.createCounter.Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
 			r.cache.Add(req.String(), sRes)
 		case events.Modified:
 			// Run specific code for "Modified" events.
-			r.updateCounter.Inc()
 			r.cache.Update(req.String(), sRes)
 		case events.Deleted:
 			// Run specific code for "Deleted" events.
-			r.deleteCounter.Inc()
 			r.cache.Delete(req.String())
 		}
 		// Add event to the queue.

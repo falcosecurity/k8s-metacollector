@@ -51,7 +51,6 @@ type PodCollector struct {
 	name            string
 	subscriberChan  <-chan string
 	logger          logr.Logger
-	generatedEventsMetrics
 }
 
 // NewPodCollector returns a new pod collector.
@@ -62,14 +61,13 @@ func NewPodCollector(cl client.Client, queue broker.Queue, cache *events.Cache, 
 	}
 
 	return &PodCollector{
-		Client:                 cl,
-		queue:                  queue,
-		cache:                  cache,
-		ownersSources:          opts.ownerSources,
-		endpointsSource:        opts.externalSource,
-		name:                   name,
-		subscriberChan:         opts.subscriberChan,
-		generatedEventsMetrics: newGeneratedEventsMetrics(name),
+		Client:          cl,
+		queue:           queue,
+		cache:           cache,
+		ownersSources:   opts.ownerSources,
+		endpointsSource: opts.externalSource,
+		name:            name,
+		subscriberChan:  opts.subscriberChan,
 	}
 }
 
@@ -151,15 +149,12 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		switch evt.Type() {
 		case "Added":
 			// Perform actions for "Added" events.
-			pc.createCounter.Inc()
 			// For each resource that generates an "Added" event, we need to add it to the cache.
 			pc.cache.Add(req.String(), pRes)
 			pc.triggerOwnersOnCreateEvent(pRes)
 		case "Modified":
-			pc.updateCounter.Inc()
 			pc.cache.Update(req.String(), pRes)
 		case "Deleted":
-			pc.deleteCounter.Inc()
 			pc.triggerOwnersOnDeleteEvent(pRes)
 			pc.cache.Delete(req.String())
 		}
