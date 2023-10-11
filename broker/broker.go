@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/alacuku/k8s-metadata/metadata"
+	"github.com/alacuku/k8s-metadata/pkg/events"
 )
 
 // Broker receives events from the collectors and sends them to the subscribers.
@@ -35,6 +36,7 @@ type Broker struct {
 	server        *grpc.Server
 	connectionsWg *sync.WaitGroup
 	opt           options
+	eventMetrics  map[string]dispatchedEventsMetrics
 }
 
 // New returns a new Broker.
@@ -67,6 +69,14 @@ func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string, o
 	// Register grpc server.
 	metadata.RegisterMetadataServer(grpcServer, metadata.New(logger.WithName("grpc-server"), subs, collectors, group))
 
+	// Create the metrics for each running collector.
+	// The name of the collector is the resource kind. Same as the kind we find
+	// in the events.
+	eventMetrics := make(map[string]dispatchedEventsMetrics, len(collectors))
+	for collector := range collectors {
+		eventMetrics[collector] = newDispatchedEventsMetrics(collector)
+	}
+
 	return &Broker{
 		queue:         queue,
 		subscribers:   subs,
@@ -74,6 +84,7 @@ func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string, o
 		server:        grpcServer,
 		connectionsWg: group,
 		opt:           opts,
+		eventMetrics:  eventMetrics,
 	}, nil
 }
 
@@ -114,6 +125,7 @@ func (br *Broker) Start(ctx context.Context) error {
 				if err := con.Stream.Send(evt.GRPCMessage()); err != nil {
 					con.Close(err)
 				}
+				br.eventMetricsHandler(evt)
 			}
 		}
 	}()
@@ -131,4 +143,10 @@ func (br *Broker) Start(ctx context.Context) error {
 		br.logger.Error(err, "grpc server failed to start")
 		return err
 	}
+}
+
+func (br *Broker) eventMetricsHandler(evt events.Event) {
+	// Get the correct counter.
+	c := br.eventMetrics[evt.ResourceKind()]
+	c.inc(evt)
 }
