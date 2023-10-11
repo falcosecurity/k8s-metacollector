@@ -31,7 +31,7 @@ func dispatch(ctx context.Context, logger logr.Logger,
 	wg := sync.WaitGroup{}
 	// it listens for new subscribers and sends the cached events to the
 	// subscriber received on the channel.
-	dispatchEventsOnSubcribe := func(ctx context.Context) {
+	dispatchEventsOnSubscribe := func(ctx context.Context) {
 		wg.Add(1)
 		for {
 			select {
@@ -57,7 +57,7 @@ func dispatch(ctx context.Context, logger logr.Logger,
 
 	logger.Info("Starting event dispatcher for new subscribers")
 	// Start the dispatcher.
-	go dispatchEventsOnSubcribe(ctx)
+	go dispatchEventsOnSubscribe(ctx)
 
 	// Wait for shutdown signal.
 	<-ctx.Done()

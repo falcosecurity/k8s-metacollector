@@ -69,7 +69,7 @@ func NewPodCollector(cl client.Client, queue broker.Queue, cache *events.Cache, 
 		endpointsSource:        opts.externalSource,
 		name:                   name,
 		subscriberChan:         opts.subscriberChan,
-		generatedEventsMetrics: newGeneratedEventsMetcrics(name),
+		generatedEventsMetrics: newGeneratedEventsMetrics(name),
 	}
 }
 

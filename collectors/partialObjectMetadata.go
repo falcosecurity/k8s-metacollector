@@ -83,7 +83,7 @@ func NewObjectMetaCollector(cl client.Client, queue broker.Queue, cache *events.
 		subscriberChan:         opts.subscriberChan,
 		resource:               res,
 		podMatchingFields:      opts.podMatchingFields,
-		generatedEventsMetrics: newGeneratedEventsMetcrics(name),
+		generatedEventsMetrics: newGeneratedEventsMetrics(name),
 	}
 }
 
@@ -136,8 +136,6 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err := r.ObjFieldsHandler(logger, res, r.resource); err != nil {
 			return ctrl.Result{}, err
 		}
-		// We need to know if the mutable fields has been changed. That's why AddNodes accepts
-		// a bool. Otherwise, we can not tell if nodes need an "Added" event or a "Modified" one.
 		res.AddNodes(currentNodes.ToSlice())
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
