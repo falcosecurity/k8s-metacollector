@@ -21,12 +21,12 @@ import (
 )
 
 const (
-	// Added possible type for an event.
-	Added = "Added"
-	// Modified possible type for an event.
-	Modified = "Modified"
-	// Deleted possible type for an event.
-	Deleted = "Deleted"
+	// Create possible type for an event.
+	Create = "Create"
+	// Update possible type for an event.
+	Update = "Update"
+	// Delete possible type for an event.
+	Delete = "Delete"
 )
 
 // GenericEvent generated for watched kubernetes resources.

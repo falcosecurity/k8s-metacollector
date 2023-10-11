@@ -133,7 +133,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 		pRes.AddNodes([]string{pod.Spec.NodeName})
 	} else {
-		// If the resource has been deleted from the api-server, then we send a "Deleted" event to all nodes
+		// If the resource has been deleted from the api-server, then we send a "Delete" event to all nodes
 		nodes := pRes.GetNodes()
 		pRes.DeleteNodes(nodes.ToSlice())
 	}
@@ -147,14 +147,14 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			continue
 		}
 		switch evt.Type() {
-		case "Added":
-			// Perform actions for "Added" events.
-			// For each resource that generates an "Added" event, we need to add it to the cache.
+		case "Create":
+			// Perform actions for "Create" events.
+			// For each resource that generates an "Create" event, we need to add it to the cache.
 			pc.cache.Add(req.String(), pRes)
 			pc.triggerOwnersOnCreateEvent(pRes)
-		case "Modified":
+		case "Update":
 			pc.cache.Update(req.String(), pRes)
-		case "Deleted":
+		case "Delete":
 			pc.triggerOwnersOnDeleteEvent(pRes)
 			pc.cache.Delete(req.String())
 		}

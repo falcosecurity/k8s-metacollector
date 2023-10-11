@@ -41,7 +41,7 @@ func dispatch(ctx context.Context, logger logr.Logger,
 					// Check if the pod is related to the subscriber.
 					nodes := res.GetNodes()
 					if _, ok := nodes[sub]; ok {
-						queue.Push(res.ToEvent(events.Added, []string{sub}))
+						queue.Push(res.ToEvent(events.Create, []string{sub}))
 					}
 				}
 				cache.ForEach(dispatch)
