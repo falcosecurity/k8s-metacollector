@@ -23,5 +23,6 @@ type Event interface {
 	Nodes() []string
 	String() string
 	Type() string
+	ResourceKind() string
 	GRPCMessage() *metadata.Event
 }

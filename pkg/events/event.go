@@ -51,6 +51,11 @@ func (ge *GenericEvent) Type() string {
 	return ge.Reason
 }
 
+// ResourceKind returns the kind of the resource for which the event has been crafted.
+func (ge *GenericEvent) ResourceKind() string {
+	return ge.Kind
+}
+
 // GRPCMessage returns the grpc message ready to be sent over the grpc connection.
 func (ge *GenericEvent) GRPCMessage() *metadata.Event {
 	return ge.Event

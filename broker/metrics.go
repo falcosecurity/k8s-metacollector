@@ -26,13 +26,10 @@ import (
 )
 
 const (
-	brokerQueueSubsystem = "broker"
-	queueLatencyKey      = "queue_duration_seconds"
-	addsKey              = "queue_adds"
-
-	addLabel    = "Add"
-	updateLabel = "Update"
-	deleteLabel = "Delete"
+	brokerSubsystem     = "broker"
+	queueLatencyKey     = "queue_duration_seconds"
+	addsKey             = "queue_adds"
+	dispatchedEventsKey = "dispatched_events"
 )
 
 var (
@@ -40,7 +37,7 @@ var (
 	// of sending events from collectors to the message broker.
 	latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: consts.MetricsNamespace,
-		Subsystem: brokerQueueSubsystem,
+		Subsystem: brokerSubsystem,
 		Name:      queueLatencyKey,
 		Help:      "How long in seconds an event stays in the queue before being requested.",
 		Buckets:   prometheus.ExponentialBuckets(10e-9, 10, 10),
@@ -48,16 +45,29 @@ var (
 
 	adds = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: consts.MetricsNamespace,
-		Subsystem: brokerQueueSubsystem,
+		Subsystem: brokerSubsystem,
 		Name:      addsKey,
 		Help:      "Total number of events handled by the queue",
 	}, []string{"name", "type"})
+
+	// dispatchedEvents is a prometheus counter metrics which holds the total
+	// number of events generated per resource kind. It has two labels. kind label refers
+	// to the resource kind and type label refers to the event type, i.e.
+	// added, updated, deleted.
+	dispatchedEvents = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: consts.MetricsNamespace,
+		Subsystem: brokerSubsystem,
+		Name:      dispatchedEventsKey,
+		Help: "Total number of events generated per resource kind destined to subscribers. kind label refers to the " +
+			"resource kind and type label refers to the event type, i.e. create, update, delete, generic",
+	}, []string{"kind", "type"})
 )
 
 func init() {
 	// Register custom metrics with the global prometheus registry.
 	ctrlmetrics.Registry.MustRegister(latency)
 	ctrlmetrics.Registry.MustRegister(adds)
+	ctrlmetrics.Registry.MustRegister(dispatchedEvents)
 }
 
 // metrics holds the metrics related to queue. It tracks the number of produced events for each type of events.
@@ -74,11 +84,11 @@ type metrics struct {
 // newMetrics returns a new ChannelMetrics ready to be used.
 func newMetrics(name string) *metrics {
 	// Initialize counters.
-	addCounter := adds.WithLabelValues(name, addLabel)
+	addCounter := adds.WithLabelValues(name, events.Create)
 	addCounter.Add(0)
-	updateCounter := adds.WithLabelValues(name, updateLabel)
+	updateCounter := adds.WithLabelValues(name, events.Update)
 	updateCounter.Add(0)
-	deleteCounter := adds.WithLabelValues(name, deleteLabel)
+	deleteCounter := adds.WithLabelValues(name, events.Delete)
 	deleteCounter.Add(0)
 	latencyObserver := latency.WithLabelValues(name)
 
@@ -101,11 +111,11 @@ func (m *metrics) send(evt events.Event) {
 	defer m.Unlock()
 
 	switch evt.Type() {
-	case events.Added:
+	case events.Create:
 		m.addCounter.Inc()
-	case events.Modified:
+	case events.Update:
 		m.updateCounter.Inc()
-	case events.Deleted:
+	case events.Delete:
 		m.deleteCounter.Inc()
 	}
 
@@ -125,5 +135,37 @@ func (m *metrics) receive(evt interface{}) {
 	if startTime, ok := m.sentTimes[evt]; ok {
 		m.latencyObserver.Observe(time.Since(startTime).Seconds())
 		delete(m.sentTimes, evt)
+	}
+}
+
+type dispatchedEventsMetrics struct {
+	createCounter prometheus.Counter
+	updateCounter prometheus.Counter
+	deleteCounter prometheus.Counter
+}
+
+func (dem *dispatchedEventsMetrics) inc(evt events.Event) {
+	switch evt.Type() {
+	case events.Create:
+		dem.createCounter.Inc()
+	case events.Update:
+		dem.updateCounter.Inc()
+	case events.Delete:
+		dem.deleteCounter.Inc()
+	}
+}
+
+func newDispatchedEventsMetrics(name string) dispatchedEventsMetrics {
+	createCounter := dispatchedEvents.WithLabelValues(name, events.Create)
+	createCounter.Add(0)
+	updateCounter := dispatchedEvents.WithLabelValues(name, events.Update)
+	updateCounter.Add(0)
+	deleteCounter := dispatchedEvents.WithLabelValues(name, events.Delete)
+	deleteCounter.Add(0)
+
+	return dispatchedEventsMetrics{
+		createCounter: createCounter,
+		updateCounter: updateCounter,
+		deleteCounter: deleteCounter,
 	}
 }
