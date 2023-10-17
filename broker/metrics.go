@@ -103,7 +103,7 @@ func newMetrics(name string) *metrics {
 }
 
 // send to be called before adding the item to the queue.
-func (m *metrics) send(evt events.Event) {
+func (m *metrics) send(evt events.Interface) {
 	if m == nil {
 		return
 	}
@@ -144,7 +144,7 @@ type dispatchedEventsMetrics struct {
 	deleteCounter prometheus.Counter
 }
 
-func (dem *dispatchedEventsMetrics) inc(evt events.Event) {
+func (dem *dispatchedEventsMetrics) inc(evt events.Interface) {
 	switch evt.Type() {
 	case events.Create:
 		dem.createCounter.Inc()

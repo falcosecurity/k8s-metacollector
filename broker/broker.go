@@ -146,7 +146,7 @@ func (br *Broker) Start(ctx context.Context) error {
 	}
 }
 
-func (br *Broker) eventMetricsHandler(evt events.Event) {
+func (br *Broker) eventMetricsHandler(evt events.Interface) {
 	// Get the correct counter.
 	c := br.eventMetrics[evt.ResourceKind()]
 	c.inc(evt)

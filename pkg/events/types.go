@@ -132,9 +132,9 @@ func (g *Resource) AddReferencesForKind(kind string, refs []fields.Reference) {
 	g.ResourceReferences[kind] = refs
 }
 
-// ToEvents returns a slice containing Event based on the internal state of the Resource.
-func (g *Resource) ToEvents() []Event {
-	evts := make([]Event, 3)
+// ToEvents returns a slice containing Interface based on the internal state of the Resource.
+func (g *Resource) ToEvents() []Interface {
+	evts := make([]Interface, 3)
 	var meta, spec, status *string
 	if g.Meta != "" {
 		m := g.Meta
@@ -150,7 +150,7 @@ func (g *Resource) ToEvents() []Event {
 	}
 
 	if len(g.createdFor) != 0 {
-		evts[0] = &GenericEvent{
+		evts[0] = &Event{
 			Event: &metadata.Event{
 				Reason: Create,
 				Uid:    g.UID,
@@ -166,7 +166,7 @@ func (g *Resource) ToEvents() []Event {
 	}
 
 	if len(g.updatedFor) != 0 {
-		evts[1] = &GenericEvent{
+		evts[1] = &Event{
 			Event: &metadata.Event{
 				Reason: Update,
 				Uid:    g.UID,
@@ -182,7 +182,7 @@ func (g *Resource) ToEvents() []Event {
 	}
 
 	if len(g.deletedFor) != 0 {
-		evts[2] = &GenericEvent{
+		evts[2] = &Event{
 			Event: &metadata.Event{
 				Reason: Delete,
 				Uid:    g.UID,

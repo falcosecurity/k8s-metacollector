@@ -22,26 +22,26 @@ import (
 
 // BlockingChannel implements the Queue interface using a channel.
 type BlockingChannel struct {
-	channel        chan events.Event
+	channel        chan events.Interface
 	metricsHandler *metrics
 }
 
 // NewBlockingChannel returns a BlockingChannel.
 func NewBlockingChannel(bufferLen int) *BlockingChannel {
 	return &BlockingChannel{
-		channel:        make(chan events.Event, bufferLen),
+		channel:        make(chan events.Interface, bufferLen),
 		metricsHandler: newMetrics("blockingChannel"),
 	}
 }
 
 // Push pushes an event to the queue.
-func (bc *BlockingChannel) Push(evt events.Event) {
+func (bc *BlockingChannel) Push(evt events.Interface) {
 	bc.metricsHandler.send(evt)
 	bc.channel <- evt
 }
 
 // Pop an event from the queue.
-func (bc *BlockingChannel) Pop(ctx context.Context) events.Event {
+func (bc *BlockingChannel) Pop(ctx context.Context) events.Interface {
 	select {
 	case evt := <-bc.channel:
 		bc.metricsHandler.receive(evt)
