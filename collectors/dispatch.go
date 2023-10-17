@@ -19,52 +19,153 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/alacuku/k8s-metadata/broker"
 	"github.com/alacuku/k8s-metadata/pkg/events"
+	"github.com/alacuku/k8s-metadata/pkg/resource"
+	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
-// Dispatch starts a go routing which waits for subscribers and dispatches the events to them. Events
-// are taken from the cache and sent through the queue. It does not return until the context is closed.
-func dispatch(ctx context.Context, logger logr.Logger,
-	subChan <-chan string, queue broker.Queue, cache *events.Cache) error {
+func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subChan subscriber.SubsChan,
+	dispatcherChan chan<- event.GenericEvent, cl client.Client, subscribers *subscriber.Subscribers) error {
 	wg := sync.WaitGroup{}
-	// it listens for new subscribers and sends the cached events to the
+	podList := &corev1.PodList{}
+	serviceList := corev1.ServiceList{}
+	replicaSet := NewPartialObjectMetadata(resource.ReplicaSet, nil)
+	// it listens for new getSubscribers and sends the cached events to the
 	// subscriber received on the channel.
 	dispatchEventsOnSubscribe := func(ctx context.Context) {
 		wg.Add(1)
 		for {
 			select {
 			case sub := <-subChan:
-				logger.V(2).Info("Dispatching events", "subscriber", sub)
-				dispatch := func(res *events.Resource) {
-					// Check if the pod is related to the subscriber.
-					nodes := res.GetNodes()
-					if _, ok := nodes[sub]; ok {
-						queue.Push(res.ToEvent(events.Create, []string{sub}))
+				if sub.Reason == subscriber.Unsubscribed {
+					// Delete the subscriber for the given node.
+					subscribers.DeleteSubscriberPerNode(sub.NodeName, sub.UID)
+				} else {
+					// Add the subscriber for the given node.
+					subscribers.AddSubscriberPerNode(sub.NodeName, sub.UID)
+				}
+				logger.V(2).Info("Dispatching events", "subscriber", sub, "resourceKind", resourceKind)
+
+				// List all pods related to the given node.
+				if err := cl.List(ctx, podList, client.MatchingFields{
+					nodeNameIndex: sub.NodeName,
+				}); err != nil {
+					logger.Error(err, "unable to dispatch pod events", "subscriber", sub, "resourceKind", resourceKind)
+				}
+
+				for i := range podList.Items {
+					switch resourceKind {
+					case resource.Pod:
+						dispatcherChan <- event.GenericEvent{Object: &corev1.Pod{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      podList.Items[i].Name,
+								Namespace: podList.Items[i].Namespace,
+							},
+						}}
+					case resource.Namespace:
+						dispatcherChan <- event.GenericEvent{Object: &corev1.Namespace{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: podList.Items[i].Namespace,
+							},
+						}}
+					case resource.ReplicaSet:
+						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						if owner.Kind == resource.ReplicaSet {
+							dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      owner.Name,
+									Namespace: podList.Items[i].Namespace,
+								},
+							}}
+						}
+					case resource.ReplicationController:
+						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						if owner.Kind == resource.ReplicationController {
+							dispatcherChan <- event.GenericEvent{Object: &corev1.ReplicationController{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      owner.Name,
+									Namespace: podList.Items[i].Namespace,
+								},
+							}}
+						}
+					case resource.Daemonset:
+						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						if owner.Kind == resource.Daemonset {
+							dispatcherChan <- event.GenericEvent{Object: &appsv1.DaemonSet{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      owner.Name,
+									Namespace: podList.Items[i].Namespace,
+								},
+							}}
+						}
+					case resource.Deployment:
+						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						if owner.Kind == resource.ReplicaSet {
+							// Get the replicaset.
+							if err := cl.Get(ctx, types.NamespacedName{
+								Namespace: podList.Items[i].Namespace,
+								Name:      owner.Name,
+							}, replicaSet); err != nil {
+								logger.Error(err, "unable to dispatch events", "subscriber", sub, "resourceKind", resourceKind)
+								continue
+							}
+							owner := events.ManagingOwner(replicaSet.OwnerReferences)
+							if owner.Kind == resource.Deployment {
+								dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:      owner.Name,
+										Namespace: podList.Items[i].Namespace,
+									},
+								}}
+							}
+						}
+					case resource.Service:
+						err := cl.List(ctx, &serviceList, &client.ListOptions{Namespace: podList.Items[i].Namespace})
+						if err != nil {
+							logger.Error(err, "unable to get services list", "subscriber", sub, "resourceKind", resourceKind)
+							continue
+						}
+						for i := range serviceList.Items {
+							sel := labels.SelectorFromValidatedSet(serviceList.Items[i].Spec.Selector)
+							if !sel.Empty() && sel.Matches(labels.Set(podList.Items[i].GetLabels())) {
+								dispatcherChan <- event.GenericEvent{Object: &corev1.Service{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:      serviceList.Items[i].Name,
+										Namespace: podList.Items[i].Namespace,
+									},
+								}}
+							}
+						}
 					}
 				}
-				cache.ForEach(dispatch)
-				logger.V(2).Info("Events correctly dispatched", "subscriber", sub)
+				logger.V(2).Info("events correctly dispatched", "subscriber", sub, "resourceKind", resourceKind)
 
 			case <-ctx.Done():
-				logger.V(2).Info("Stopping dispatcher on new subscribers")
+				logger.V(2).Info("stopping dispatcher on new getSubscribers", "resourceKind", resourceKind)
 				wg.Done()
 				return
 			}
 		}
 	}
 
-	logger.Info("Starting event dispatcher for new subscribers")
+	logger.Info("starting event dispatcher for new getSubscribers", "resourceKind", resourceKind)
 	// Start the dispatcher.
 	go dispatchEventsOnSubscribe(ctx)
 
 	// Wait for shutdown signal.
 	<-ctx.Done()
-	logger.Info("Waiting for event dispatcher to finish")
+	logger.Info("waiting for event dispatcher to finish", "resourceKind", resourceKind)
 	// Wait for goroutines to stop.
 	wg.Wait()
-	logger.Info("Dispatcher finished")
+	logger.Info("dispatcher finished", "resourceKind", resourceKind)
 
 	return nil
 }

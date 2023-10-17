@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 
 	"github.com/go-logr/logr"
+	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -35,6 +37,7 @@ import (
 	"github.com/alacuku/k8s-metadata/pkg/events"
 	"github.com/alacuku/k8s-metadata/pkg/fields"
 	"github.com/alacuku/k8s-metadata/pkg/resource"
+	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 // ServiceCollector collects services' metadata, puts them in a local cache and generates appropriate
@@ -45,8 +48,15 @@ type ServiceCollector struct {
 	cache           *events.Cache
 	endpointsSource source.Source
 	name            string
-	subscriberChan  <-chan string
+	subscriberChan  subscriber.SubsChan
 	logger          logr.Logger
+	// dispatcherSource is used to get events enqueued by the dispatcher based
+	// on subscribers' arrival.
+	dispatcherSource source.Source
+	// dispatcherChan is the channel where the dispatcher pushes the new requests to be enqueued and
+	// processed by the reconciler.
+	dispatcherChan chan event.GenericEvent
+	subscribers    *subscriber.Subscribers
 }
 
 // NewServiceCollector returns a new service collector.
@@ -56,13 +66,18 @@ func NewServiceCollector(cl client.Client, queue broker.Queue, cache *events.Cac
 		o(&opts)
 	}
 
+	dc := make(chan event.GenericEvent, 1)
+
 	return &ServiceCollector{
-		Client:          cl,
-		queue:           queue,
-		cache:           cache,
-		endpointsSource: opts.externalSource,
-		name:            name,
-		subscriberChan:  opts.subscriberChan,
+		Client:           cl,
+		queue:            queue,
+		cache:            cache,
+		endpointsSource:  opts.externalSource,
+		name:             name,
+		subscriberChan:   opts.subscriberChan,
+		dispatcherSource: &source.Channel{Source: dc},
+		dispatcherChan:   dc,
+		subscribers:      subscriber.NewSubscribers(),
 	}
 }
 
@@ -73,6 +88,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	var err error
 	var svc = &corev1.Service{}
 	var sRes *events.Resource
+	var cEntry *events.CacheEntry
 	var ok, serviceDeleted bool
 
 	logger := log.FromContext(ctx)
@@ -95,32 +111,68 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	logger.V(5).Info("resource found")
 
-	// Get all the nodes to which this resource is related.
-	// The currentNodes are used to compute to which nodes we need to send an event
-	// and of which type, Create, Delete or Update.
-	currentNodes, err := r.Nodes(ctx, logger, svc)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Check if the resource has already been cached.
-	if sRes, ok = r.cache.Get(req.String()); !ok {
-		// If first time, then we just create a new cache entry for it.
-		logger.V(3).Info("never met this resource in my life")
-		sRes = events.NewResource(resource.Service, string(svc.UID))
-	}
-
 	// The resource has been created, or updated. Compute if we need to propagate events.
-	// The outcome is saved internally to the resource. See AddNodes method for more info.
+	// The outcome is saved internally to the resource. See GenerateSubscribers method for more info.
 	if !serviceDeleted {
+		// Get all subscribers for the resource based on its node name.
+		// The subscribers are used to compute to which subscribers we need to send an event
+		// and of which type, Create, Delete or Update.
+		subs, err := r.getSubscribers(ctx, logger, svc)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		// If no subscribers/nodes for the current resource just return.
+		if len(subs) == 0 && !r.cache.Has(req.String()) {
+			return ctrl.Result{}, nil
+		}
+		// Create the resource.
+		sRes = events.NewResource(resource.Service, string(svc.UID))
+		// Populate resource fields.
 		if err := r.ObjFieldsHandler(logger, sRes, svc); err != nil {
 			return ctrl.Result{}, err
 		}
-		sRes.AddNodes(currentNodes.ToSlice())
+		// Hash the resource.
+		hash, err := hashstructure.Hash(sRes, hashstructure.FormatV2, nil)
+		if err != nil {
+			logger.Error(err, "unable to hash resource")
+			return ctrl.Result{}, err
+		}
+
+		// Check if we have cached the resource previously.
+		if cEntry, ok = r.cache.Get(req.String()); ok {
+			if cEntry.Hash != hash {
+				sRes.SetUpdate(true)
+				cEntry.Hash = hash
+			}
+			sRes.SetSubscribers(cEntry.Subs)
+		} else {
+			cEntry = &events.CacheEntry{
+				Hash: hash,
+				UID:  svc.UID,
+				Subs: nil,
+			}
+			r.cache.Add(req.String(), cEntry)
+		}
+
+		sRes.GenerateSubscribers(subs)
+		cEntry.Subs = sRes.GetSubscribers()
 	} else {
-		// If the resource has been deleted from the api-server, then we send a "Delete" event to all nodes
-		nodes := sRes.GetNodes()
-		sRes.DeleteNodes(nodes.ToSlice())
+		// If the resource has been deleted from the api-server, then we send a "Delete" event to all nodes.
+		// Only if we have sent previously the resource.
+		if cEntry, ok = r.cache.Get(req.String()); ok {
+			// Check if we have cached the resource.
+			sRes = events.NewResource(resource.Pod, string(cEntry.UID))
+			sRes.SetSubscribers(cEntry.Subs)
+			sRes.GenerateSubscribers(nil)
+			// We are ready to remove the entry from the cache. No need to track anymore
+			// the deleted resource.
+			r.cache.Delete(req.String())
+		} else {
+			// It means that we received a delete event for a resource that we never sent to any subscriber.
+			// In this case we just return.
+			return ctrl.Result{}, nil
+		}
 	}
 
 	// At this point our resource has all the necessary bits to know for each node which type of events need to be sent.
@@ -128,23 +180,10 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// Enqueue events.
 	for _, evt := range evts {
-		if evt == nil {
-			continue
+		if evt != nil {
+			// Add event to the queue.
+			r.queue.Push(evt)
 		}
-		switch evt.Type() {
-		case events.Create:
-			// Perform actions for "Create" events.
-			// For each resource that generates an "Create" event, we need to add it to the cache.
-			r.cache.Add(req.String(), sRes)
-		case events.Update:
-			// Run specific code for "Update" events.
-			r.cache.Update(req.String(), sRes)
-		case events.Delete:
-			// Run specific code for "Delete" events.
-			r.cache.Delete(req.String())
-		}
-		// Add event to the queue.
-		r.queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -154,7 +193,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (r *ServiceCollector) Start(ctx context.Context) error {
-	return dispatch(ctx, r.logger, r.subscriberChan, r.queue, r.cache)
+	return dispatch(ctx, r.logger, resource.Service, r.subscriberChan, r.dispatcherChan, r.Client, r.subscribers)
 }
 
 // ObjFieldsHandler populates the evt from the object.
@@ -187,8 +226,8 @@ func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Reso
 	return nil
 }
 
-// Nodes returns all the nodes where pods related to the current deployment are running.
-func (r *ServiceCollector) Nodes(ctx context.Context, logger logr.Logger, svc *corev1.Service) (fields.Nodes, error) {
+// getSubscribers returns all the nodes where pods related to the current deployment are running.
+func (r *ServiceCollector) getSubscribers(ctx context.Context, logger logr.Logger, svc *corev1.Service) (fields.Subscribers, error) {
 	pods := corev1.PodList{}
 	if err := r.List(ctx, &pods, client.InNamespace(svc.Namespace), client.MatchingLabels(svc.Spec.Selector)); err != nil {
 		logger.Error(err, "unable to list pods related to resource", "in namespace", svc.Namespace)
@@ -199,14 +238,19 @@ func (r *ServiceCollector) Nodes(ctx context.Context, logger logr.Logger, svc *c
 		return nil, nil
 	}
 
-	nodes := make(map[string]struct{}, len(pods.Items))
+	subs := make(fields.Subscribers)
 	for i := range pods.Items {
 		if pods.Items[i].Spec.NodeName != "" && pods.Items[i].Status.PodIP != "" {
-			nodes[pods.Items[i].Spec.NodeName] = struct{}{}
+			if ok := r.subscribers.HasNode(pods.Items[i].Spec.NodeName); ok {
+				s := r.subscribers.GetSubscribersPerNode(pods.Items[i].Spec.NodeName)
+				for s1 := range s {
+					subs.Add(s1)
+				}
+			}
 		}
 	}
 
-	return nodes, nil
+	return subs, nil
 }
 
 // GetName returns the name of the collector.
@@ -231,6 +275,9 @@ func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
 		WatchesRawSource(r.endpointsSource,
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(predicatesWithMetrics(r.name, resource.Endpoints, nil))).
+		WatchesRawSource(r.dispatcherSource,
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(r.name, "dispatcher", nil))).
 		Owns(&discoveryv1.EndpointSlice{},
 			builder.WithPredicates(predicatesWithMetrics(r.name, resource.EndpointSlice, nil))).
 		Complete(r)

@@ -26,6 +26,7 @@ import (
 
 	"github.com/alacuku/k8s-metadata/metadata"
 	"github.com/alacuku/k8s-metadata/pkg/events"
+	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 // Broker receives events from the collectors and sends them to the subscribers.
@@ -40,7 +41,7 @@ type Broker struct {
 }
 
 // New returns a new Broker.
-func New(logger logr.Logger, queue Queue, collectors map[string]chan<- string, opt ...Option) (*Broker, error) {
+func New(logger logr.Logger, queue Queue, collectors map[string]subscriber.SubsChan, opt ...Option) (*Broker, error) {
 	var grpcServer *grpc.Server
 	subs := &sync.Map{}
 	group := &sync.WaitGroup{}
@@ -111,15 +112,15 @@ func (br *Broker) Start(ctx context.Context) error {
 
 			br.logger.V(7).Info("received event", "event:", evt.String())
 
-			for _, node := range evt.Nodes() {
+			for sub := range evt.Subscribers() {
 				// Get the grpc stream for the subscriber.
-				c, ok := br.subscribers.Load(node)
+				c, ok := br.subscribers.Load(sub)
 				if !ok {
 					continue
 				}
 				con, ok := c.(metadata.Connection)
 				if !ok {
-					br.logger.Error(fmt.Errorf("failed to cast subscriber connection %T", con), "node", node)
+					br.logger.Error(fmt.Errorf("failed to cast subscriber connection %T", con), "subscriber", sub)
 					continue
 				}
 				if err := con.Stream.Send(evt.GRPCMessage()); err != nil {
