@@ -30,34 +30,36 @@ const (
 	Delete = "Delete"
 )
 
-// GenericEvent generated for watched kubernetes resources.
-type GenericEvent struct {
+var _ Interface = &Event{}
+
+// Event generated for watched kubernetes resources.
+type Event struct {
 	*metadata.Event
 	Subs fields.Subscribers
 }
 
 // Subscribers returns the destination nodes.
-func (ge *GenericEvent) Subscribers() fields.Subscribers {
+func (ge *Event) Subscribers() fields.Subscribers {
 	return ge.Subs
 }
 
 // String returns the event in string format.
-func (ge *GenericEvent) String() string {
+func (ge *Event) String() string {
 	return fmt.Sprintf("Resource Kind %q, event type %q, resource name %q, subscribers %q",
 		ge.Kind, ge.Reason, ge.GetMeta(), ge.Subscribers())
 }
 
 // Type returns the event type.
-func (ge *GenericEvent) Type() string {
+func (ge *Event) Type() string {
 	return ge.Reason
 }
 
 // ResourceKind returns the Kind of the resource for which the event has been crafted.
-func (ge *GenericEvent) ResourceKind() string {
+func (ge *Event) ResourceKind() string {
 	return ge.Kind
 }
 
 // GRPCMessage returns the grpc message ready to be sent over the grpc connection.
-func (ge *GenericEvent) GRPCMessage() *metadata.Event {
+func (ge *Event) GRPCMessage() *metadata.Event {
 	return ge.Event
 }
