@@ -61,57 +61,57 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 					logger.Error(err, "unable to dispatch pod events", "subscriber", sub, "resourceKind", resourceKind)
 				}
 
-				for i := range podList.Items {
+				for podIndex := range podList.Items {
 					switch resourceKind {
 					case resource.Pod:
 						dispatcherChan <- event.GenericEvent{Object: &corev1.Pod{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:      podList.Items[i].Name,
-								Namespace: podList.Items[i].Namespace,
+								Name:      podList.Items[podIndex].Name,
+								Namespace: podList.Items[podIndex].Namespace,
 							},
 						}}
 					case resource.Namespace:
 						dispatcherChan <- event.GenericEvent{Object: &corev1.Namespace{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: podList.Items[i].Namespace,
+								Name: podList.Items[podIndex].Namespace,
 							},
 						}}
 					case resource.ReplicaSet:
-						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner.Kind == resource.ReplicaSet {
 							dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
 								ObjectMeta: metav1.ObjectMeta{
 									Name:      owner.Name,
-									Namespace: podList.Items[i].Namespace,
+									Namespace: podList.Items[podIndex].Namespace,
 								},
 							}}
 						}
 					case resource.ReplicationController:
-						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner.Kind == resource.ReplicationController {
 							dispatcherChan <- event.GenericEvent{Object: &corev1.ReplicationController{
 								ObjectMeta: metav1.ObjectMeta{
 									Name:      owner.Name,
-									Namespace: podList.Items[i].Namespace,
+									Namespace: podList.Items[podIndex].Namespace,
 								},
 							}}
 						}
 					case resource.Daemonset:
-						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner.Kind == resource.Daemonset {
 							dispatcherChan <- event.GenericEvent{Object: &appsv1.DaemonSet{
 								ObjectMeta: metav1.ObjectMeta{
 									Name:      owner.Name,
-									Namespace: podList.Items[i].Namespace,
+									Namespace: podList.Items[podIndex].Namespace,
 								},
 							}}
 						}
 					case resource.Deployment:
-						owner := events.ManagingOwner(podList.Items[i].OwnerReferences)
+						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner.Kind == resource.ReplicaSet {
 							// Get the replicaset.
 							if err := cl.Get(ctx, types.NamespacedName{
-								Namespace: podList.Items[i].Namespace,
+								Namespace: podList.Items[podIndex].Namespace,
 								Name:      owner.Name,
 							}, replicaSet); err != nil {
 								logger.Error(err, "unable to dispatch events", "subscriber", sub, "resourceKind", resourceKind)
@@ -122,24 +122,24 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 								dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
 									ObjectMeta: metav1.ObjectMeta{
 										Name:      owner.Name,
-										Namespace: podList.Items[i].Namespace,
+										Namespace: podList.Items[podIndex].Namespace,
 									},
 								}}
 							}
 						}
 					case resource.Service:
-						err := cl.List(ctx, &serviceList, &client.ListOptions{Namespace: podList.Items[i].Namespace})
+						err := cl.List(ctx, &serviceList, &client.ListOptions{Namespace: podList.Items[podIndex].Namespace})
 						if err != nil {
 							logger.Error(err, "unable to get services list", "subscriber", sub, "resourceKind", resourceKind)
 							continue
 						}
-						for i := range serviceList.Items {
-							sel := labels.SelectorFromValidatedSet(serviceList.Items[i].Spec.Selector)
-							if !sel.Empty() && sel.Matches(labels.Set(podList.Items[i].GetLabels())) {
+						for svcIndex := range serviceList.Items {
+							sel := labels.SelectorFromValidatedSet(serviceList.Items[svcIndex].Spec.Selector)
+							if !sel.Empty() && sel.Matches(labels.Set(podList.Items[podIndex].GetLabels())) {
 								dispatcherChan <- event.GenericEvent{Object: &corev1.Service{
 									ObjectMeta: metav1.ObjectMeta{
-										Name:      serviceList.Items[i].Name,
-										Namespace: podList.Items[i].Namespace,
+										Name:      serviceList.Items[svcIndex].Name,
+										Namespace: podList.Items[podIndex].Namespace,
 									},
 								}}
 							}
