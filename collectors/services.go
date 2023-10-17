@@ -155,8 +155,9 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			r.cache.Add(req.String(), cEntry)
 		}
 
-		sRes.GenerateSubscribers(subs)
-		cEntry.Subs = sRes.GetSubscribers()
+		// Add the new subscribers and internally compute the new subscribers to which we need to sent events.
+		// Update the cache entry with the new set of getSubscribers.
+		cEntry.Subs = sRes.GenerateSubscribers(subs)
 	} else {
 		// If the resource has been deleted from the api-server, then we send a "Delete" event to all nodes.
 		// Only if we have sent previously the resource.

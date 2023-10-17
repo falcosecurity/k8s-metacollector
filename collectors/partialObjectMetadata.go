@@ -178,9 +178,8 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 
 		// Add the new subscribers and internally compute the new subscribers to which we need to sent events.
-		res.GenerateSubscribers(subs)
 		// Update the cache entry with the new set of getSubscribers.
-		cEntry.Subs = res.GetSubscribers()
+		cEntry.Subs = res.GenerateSubscribers(subs)
 	} else {
 		// Check if we have cached the resource.
 		if cEntry, ok = r.cache.Get(req.String()); ok {
