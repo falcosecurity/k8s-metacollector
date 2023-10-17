@@ -18,6 +18,9 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/util/uuid"
+
+	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 // Connection used to track a subscriber connection. Each time a subscriber arrives a
@@ -40,14 +43,15 @@ func (c *Connection) Close(err error) {
 // Server grpc server started by the broker that listens for new connections from subscribers.
 type Server struct {
 	UnimplementedMetadataServer
+	// Subs are stored using as key the UID and values the connection.
 	subscribers   *sync.Map
 	logger        logr.Logger
-	collectors    map[string]chan<- string
+	collectors    map[string]subscriber.SubsChan
 	connectionsWg *sync.WaitGroup
 }
 
 // New returns a new Server.
-func New(logger logr.Logger, subs *sync.Map, collectors map[string]chan<- string, group *sync.WaitGroup) *Server {
+func New(logger logr.Logger, subs *sync.Map, collectors map[string]subscriber.SubsChan, group *sync.WaitGroup) *Server {
 	return &Server{
 		subscribers:   subs,
 		logger:        logger,
@@ -62,32 +66,31 @@ func New(logger logr.Logger, subs *sync.Map, collectors map[string]chan<- string
 func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 	var err error
 	var connection Connection
-	s.logger.Info("received watch request", "subscriber", selector.NodeName)
+	// For each new subscriber we generate an UID.
+	UID := string(uuid.NewUUID())
+	s.logger.Info("received watch request", "node", selector.NodeName, "subscriber UID", UID)
 	errorChan := make(chan error, 1)
 
-	// Check if the client subscribed previously.
-	c, ok := s.subscribers.Load(selector.NodeName)
-	if ok {
-		con := c.(Connection)
-		// Close the existing watch.
-		s.logger.Info("closing existing watch", "subscriber", selector.NodeName)
-		con.Close(nil)
-	}
 	connection = Connection{
 		error:    errorChan,
 		Stream:   stream,
 		Selector: selector,
 		once:     &sync.Once{},
 	}
-	s.subscribers.Store(selector.NodeName, connection)
+
+	msg := subscriber.Message{
+		NodeName: selector.NodeName,
+		UID:      UID,
+		Reason:   subscriber.Subscribed,
+	}
+
+	s.subscribers.Store(UID, connection)
 	subscribers.Inc()
-	s.logger.Info("starting initial event sync", "subscriber", selector.NodeName)
-	for resource, filter := range selector.ResourceKinds {
-		s.logger.Info("dispatching initial sync", "subscriber", selector.NodeName, "resource", resource, "selector", filter)
+	s.logger.Info("starting initial event sync", "node", selector.NodeName, "subscriber UID", UID)
+	for resource := range selector.ResourceKinds {
 		if collector, ok := s.collectors[resource]; ok {
-			collector <- selector.NodeName
+			collector <- msg
 		}
-		s.logger.Info("initial sync correctly dispatched", "subscriber", selector.NodeName, "resource", resource, "selector", filter)
 	}
 
 	// Add the connection to waiting group.
@@ -104,7 +107,14 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 
 	s.logger.Info("stream deleted", "subscriber", selector.NodeName)
 
-	_ = s.subscribers.CompareAndDelete(selector.NodeName, connection)
+	// Unsubscribe from all the collectors.
+	s.subscribers.Delete(UID)
+	msg.Reason = subscriber.Unsubscribed
+	for resource := range selector.ResourceKinds {
+		if collector, ok := s.collectors[resource]; ok {
+			collector <- msg
+		}
+	}
 	subscribers.Dec()
 	return err
 }

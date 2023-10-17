@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/alacuku/k8s-metadata/metadata"
+	"github.com/alacuku/k8s-metadata/pkg/fields"
 )
 
 const (
@@ -32,18 +33,18 @@ const (
 // GenericEvent generated for watched kubernetes resources.
 type GenericEvent struct {
 	*metadata.Event
-	DestinationNodes []string
+	Subs fields.Subscribers
 }
 
-// Nodes returns the destination nodes.
-func (ge *GenericEvent) Nodes() []string {
-	return ge.DestinationNodes
+// Subscribers returns the destination nodes.
+func (ge *GenericEvent) Subscribers() fields.Subscribers {
+	return ge.Subs
 }
 
 // String returns the event in string format.
 func (ge *GenericEvent) String() string {
-	return fmt.Sprintf("Resource kind %q, event type %q, resource name %q, namespace %q, destination nodes %q",
-		ge.Kind, ge.Reason, ge.GetMeta(), ge.Nodes())
+	return fmt.Sprintf("Resource Kind %q, event type %q, resource name %q, subscribers %q",
+		ge.Kind, ge.Reason, ge.GetMeta(), ge.Subscribers())
 }
 
 // Type returns the event type.
@@ -51,7 +52,7 @@ func (ge *GenericEvent) Type() string {
 	return ge.Reason
 }
 
-// ResourceKind returns the kind of the resource for which the event has been crafted.
+// ResourceKind returns the Kind of the resource for which the event has been crafted.
 func (ge *GenericEvent) ResourceKind() string {
 	return ge.Kind
 }

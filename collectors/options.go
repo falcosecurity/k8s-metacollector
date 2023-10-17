@@ -19,11 +19,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 type collectorOptions struct {
 	externalSource    source.Source
-	subscriberChan    <-chan string
+	subscriberChan    subscriber.SubsChan
 	podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption
 	ownerSources      map[string]chan<- event.GenericEvent
 }
@@ -39,7 +41,7 @@ func WithExternalSource(src source.Source) CollectorOption {
 }
 
 // WithSubscribersChan configures the subscriber channel.
-func WithSubscribersChan(sChan <-chan string) CollectorOption {
+func WithSubscribersChan(sChan subscriber.SubsChan) CollectorOption {
 	return func(opt *collectorOptions) {
 		opt.subscriberChan = sChan
 	}

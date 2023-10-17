@@ -21,256 +21,174 @@ import (
 )
 
 // Resource event that holds metadata fields for k8s resources.
+//
+//nolint:govet //needed for hashing.
 type Resource struct {
-	kind   string
-	uid    string
-	meta   string
-	spec   string
-	status string
+	Kind   string
+	UID    string
+	Meta   string
+	Spec   string
+	Status string
 	// Only used when storing metadata for pods.
-	resourceReferences fields.References
+	ResourceReferences fields.References
 	// Tracks the nodes to which we have already sent the resource.
-	nodes fields.Nodes
+	subs fields.Subscribers `hash: "ignore"`
 	// State fields that are needed to track the nodes to which we need to send
 	// the resource. This fields thought to be used by the methods of the Resource.
-	addedFor    []string
-	modifiedFor []string
-	deletedFor  []string
-	updated     bool
+	createdFor fields.Subscribers `hash:"ignore"`
+	updatedFor fields.Subscribers `hash:"ignore"`
+	deletedFor fields.Subscribers `hash:"ignore"`
+	updated    bool               `hash:"ignore"`
 }
 
 // NewResource returns a new Resource.
 func NewResource(kind, uid string) *Resource {
 	return &Resource{
-		kind:  kind,
-		uid:   uid,
-		nodes: make(fields.Nodes),
+		Kind: kind,
+		UID:  uid,
+		subs: make(fields.Subscribers),
 	}
 }
 
 // GetMetadata returns the metadata field.
 func (g *Resource) GetMetadata() string {
-	return g.meta
+	return g.Meta
 }
 
-// GetSpec returns the spec field.
+// GetSpec returns the Spec field.
 func (g *Resource) GetSpec() string {
-	return g.spec
+	return g.Spec
 }
 
-// GetStatus returns the status field.
+// GetStatus returns the Status field.
 func (g *Resource) GetStatus() string {
-	return g.status
+	return g.Status
 }
 
-// SetMeta sets the meta field if different from the existing one.
+// SetMeta sets the Meta field if different from the existing one.
 // It also sets to true the "updated" internal variable.
 func (g *Resource) SetMeta(meta string) {
-	if g.meta != meta {
-		g.meta = meta
-		g.updated = true
-	}
+	g.Meta = meta
 }
 
-// SetSpec sets the spec field if different from the existing one.
+// SetSpec sets the Spec field if different from the existing one.
 // It also sets to true the "updated" internal variable.
 func (g *Resource) SetSpec(spec string) {
-	if g.spec != spec {
-		g.spec = spec
-		g.updated = true
-	}
+	g.Spec = spec
 }
 
-// SetStatus sets the status field if different from the existing one.
+// SetStatus sets the Status field if different from the existing one.
 // It also sets to true the "updated" internal variable.
 func (g *Resource) SetStatus(status string) {
-	if g.status != status {
-		g.status = status
-		g.updated = true
-	}
+	g.Status = status
 }
 
-// SetCreatedFor sets the nodes for which this resource needs to generate an "Create" event.
-func (g *Resource) SetCreatedFor(nodes []string) {
-	g.addedFor = nodes
+// SetUpdate sets the update flag for the resource.
+func (g *Resource) SetUpdate(update bool) {
+	g.updated = update
 }
 
-// SetModifiedFor sets the nodes for which this resource needs to generate a "Update" event.
-func (g *Resource) SetModifiedFor(nodes []string) {
-	g.modifiedFor = nodes
-}
-
-// SetDeletedFor sets the nodes for which this resource need to generate a "Delete" event.
-func (g *Resource) SetDeletedFor(nodes []string) {
-	g.deletedFor = nodes
-}
-
-// AddNodes populates the nodes to which the events need to be sent, starting from the given nodes and the provided flag.
-// The starting point is the cached nodes to which we already know that we have sent at least an "Create" event. From the
-// cached nodes and the passed ones it generates the nodes to which we need to send an event and saves them in the appropriate
-// field, i.e. Resource.addedFor, Resource.modifiedFor and Resource.deletedFor. Note that the updated
-// flag is set to true if the mutable fields for the resource has been updated. At the same time the Resource.nodes field is updated
+// GenerateSubscribers populates the subscribers to which the events need to be sent, starting from the given subscribers.
+// The starting point are the cached subscribers to which we already know that we have sent at least a "Create" event. From the
+// cached subscribers and the passed ones it generates the subscribers to which we need to send an event and saves them in the appropriate
+// field, i.e. Resource.createdFor, Resource.updatedFor and Resource.deletedFor. At the same time the Resource.nodes field is updated
 // based on the new added or deleted nodes.
-func (g *Resource) AddNodes(nodes []string) {
-	var added, modified, deleted []string
-	tmpNodes := make(fields.Nodes, len(nodes))
-
-	for _, n := range nodes {
-		tmpNodes[n] = struct{}{}
-		if _, ok := g.nodes[n]; !ok {
-			g.nodes[n] = struct{}{}
-			added = append(added, n)
-		} else if g.updated {
-			modified = append(modified, n)
-		}
-	}
-
-	for n := range g.nodes {
-		if _, ok := tmpNodes[n]; !ok {
-			deleted = append(deleted, n)
-			delete(g.nodes, n)
-		}
-	}
-
-	g.addedFor = added
+func (g *Resource) GenerateSubscribers(subs fields.Subscribers) fields.Subscribers {
+	// Compute the subscribers to which we need to send a Create event.
+	g.createdFor = subs.Difference(g.subs)
+	// Compute the subscribers to which we need to send an Update event.
 	if g.updated {
-		g.modifiedFor = modified
+		g.updatedFor = subs.Intersect(g.subs)
 	}
-	g.deletedFor = deleted
+	// Compute the subscribers to which we need to send a Delete event.
+	g.deletedFor = g.subs.Difference(subs)
 
-	g.updated = false
+	// Return the final subscribers for this resource.
+	// Meaning the subscribers that have received or will receive an event for the
+	// resource.
+	return subs
 }
 
-// DeleteNodes populates the Resource.deletedFor field with the passed nodes.
-// At the same time the Resource.nodes field is updated based on the new added
-// or deleted nodes.
-func (g *Resource) DeleteNodes(nodes []string) {
-	var deleted []string
-
-	for _, n := range nodes {
-		if _, ok := g.nodes[n]; ok {
-			deleted = append(deleted, n)
-			delete(g.nodes, n)
-		}
-	}
-
-	g.deletedFor = deleted
+// GetSubscribers returns the nodes.
+func (g *Resource) GetSubscribers() fields.Subscribers {
+	return g.subs
 }
 
-// GetNodes returns the nodes.
-func (g *Resource) GetNodes() fields.Nodes {
-	return g.nodes
-}
-
-// SetNodes populates the nodes to which send the event.
-func (g *Resource) SetNodes(nodes fields.Nodes) {
-	g.nodes = nodes
+// SetSubscribers populates the nodes to which send the event.
+func (g *Resource) SetSubscribers(subs fields.Subscribers) {
+	g.subs = subs
 }
 
 // GetResourceReferences returns refs.
 func (g *Resource) GetResourceReferences() fields.References {
-	return g.resourceReferences
+	return g.ResourceReferences
 }
 
-// AddReferencesForKind adds references for a given kind in the pod event.
+// AddReferencesForKind adds references for a given Kind in the pod event.
 func (g *Resource) AddReferencesForKind(kind string, refs []fields.Reference) {
-	if g.resourceReferences == nil {
-		g.resourceReferences = make(map[string][]fields.Reference)
+	if g.ResourceReferences == nil {
+		g.ResourceReferences = make(map[string][]fields.Reference)
 	}
-
-	refsLen := len(refs)
-
-	// Check if we already have references for the given resource kind.
-	oldRefs, ok := g.resourceReferences[kind]
-	// If no refs found and the new refs are not empty then set them for the given resource kind.
-	if !ok && refsLen != 0 {
-		g.resourceReferences[kind] = refs
-		g.updated = true
-		return
-	}
-
-	// If the passed refs have length 0 for the given resource kind, which is acceptable then we delete the current one.
-	if refsLen == 0 && len(oldRefs) != 0 {
-		delete(g.resourceReferences, kind)
-		g.updated = true
-		return
-	}
-
-	// If the number of old references is not equal to the number of new references,
-	// just delete the current ones and set the new ones.
-	if len(oldRefs) != refsLen {
-		g.resourceReferences[kind] = refs
-		g.updated = true
-		return
-	}
-
-	// Determine if we need to update the refs.
-	for _, uid := range refs {
-		if !Contains(oldRefs, uid) {
-			g.resourceReferences[kind] = refs
-			g.updated = true
-			return
-		}
-	}
+	g.ResourceReferences[kind] = refs
 }
 
-// ToEvents returns a slice containing Event based on the internal state of the PodResource.
+// ToEvents returns a slice containing Event based on the internal state of the Resource.
 func (g *Resource) ToEvents() []Event {
 	evts := make([]Event, 3)
 	var meta, spec, status *string
-	if g.meta != "" {
-		m := g.meta
+	if g.Meta != "" {
+		m := g.Meta
 		meta = &m
 	}
-	if g.spec != "" {
-		s := g.spec
+	if g.Spec != "" {
+		s := g.Spec
 		spec = &s
 	}
-	if g.status != "" {
-		s := g.status
+	if g.Status != "" {
+		s := g.Status
 		status = &s
 	}
 
-	if len(g.addedFor) != 0 {
+	if len(g.createdFor) != 0 {
 		evts[0] = &GenericEvent{
 			Event: &metadata.Event{
 				Reason: Create,
-				Uid:    g.uid,
-				Kind:   g.kind,
+				Uid:    g.UID,
+				Kind:   g.Kind,
 				Meta:   meta,
 				Spec:   spec,
 				Status: status,
 				Refs:   g.grpcRefs(),
 			},
-			DestinationNodes: g.addedFor,
+			Subs: g.createdFor,
 		}
-		g.addedFor = nil
+		g.createdFor = nil
 	}
 
-	if len(g.modifiedFor) != 0 {
+	if len(g.updatedFor) != 0 {
 		evts[1] = &GenericEvent{
 			Event: &metadata.Event{
 				Reason: Update,
-				Uid:    g.uid,
-				Kind:   g.kind,
+				Uid:    g.UID,
+				Kind:   g.Kind,
 				Meta:   meta,
 				Spec:   spec,
 				Status: status,
 				Refs:   g.grpcRefs(),
 			},
-			DestinationNodes: g.modifiedFor,
+			Subs: g.updatedFor,
 		}
-		g.modifiedFor = nil
+		g.updatedFor = nil
 	}
 
 	if len(g.deletedFor) != 0 {
 		evts[2] = &GenericEvent{
 			Event: &metadata.Event{
 				Reason: Delete,
-				Uid:    g.uid,
-				Kind:   g.kind,
+				Uid:    g.UID,
+				Kind:   g.Kind,
 			},
-			DestinationNodes: g.deletedFor,
+			Subs: g.deletedFor,
 		}
 		g.deletedFor = nil
 	}
@@ -278,71 +196,11 @@ func (g *Resource) ToEvents() []Event {
 	return evts
 }
 
-// ToEvent returns an event based on the reason for the specified nodes.
-func (g *Resource) ToEvent(reason string, nodes []string) Event {
-	var evt *GenericEvent
-	var meta, spec, status *string
-	if g.meta != "" {
-		m := g.meta
-		meta = &m
-	}
-	if g.spec != "" {
-		s := g.spec
-		spec = &s
-	}
-	if g.status != "" {
-		s := g.status
-		status = &s
-	}
-
-	switch reason {
-	case Create:
-		evt = &GenericEvent{
-			Event: &metadata.Event{
-				Reason: Create,
-				Uid:    g.uid,
-				Kind:   g.kind,
-				Meta:   meta,
-				Spec:   spec,
-				Status: status,
-				Refs:   g.grpcRefs(),
-			},
-			DestinationNodes: nodes,
-		}
-	case Update:
-		evt = &GenericEvent{
-			Event: &metadata.Event{
-				Reason: Update,
-				Uid:    g.uid,
-				Kind:   g.kind,
-				Meta:   meta,
-				Spec:   spec,
-				Status: status,
-				Refs:   g.grpcRefs(),
-			},
-			DestinationNodes: nodes,
-		}
-	case Delete:
-		evt = &GenericEvent{
-			Event: &metadata.Event{
-				Reason: Delete,
-				Uid:    g.uid,
-				Kind:   g.kind,
-			},
-			DestinationNodes: nodes,
-		}
-	default:
-		evt = &GenericEvent{}
-	}
-
-	return evt
-}
-
 func (g *Resource) grpcRefs() *metadata.References {
-	if g.resourceReferences != nil && g.kind == resource.Pod {
+	if g.ResourceReferences != nil && g.Kind == resource.Pod {
 		// Converting the references to grpc message format.
-		grpcRefs := make(map[string]*metadata.ListOfStrings, len(g.resourceReferences))
-		refs := g.resourceReferences.ToFlatMap()
+		grpcRefs := make(map[string]*metadata.ListOfStrings, len(g.ResourceReferences))
+		refs := g.ResourceReferences.ToFlatMap()
 		for k, val := range refs {
 			grpcRefs[k] = &metadata.ListOfStrings{List: val}
 		}

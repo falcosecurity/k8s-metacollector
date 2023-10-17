@@ -40,6 +40,7 @@ import (
 	"github.com/alacuku/k8s-metadata/collectors"
 	"github.com/alacuku/k8s-metadata/pkg/events"
 	"github.com/alacuku/k8s-metadata/pkg/resource"
+	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 var (
@@ -159,7 +160,7 @@ func main() {
 	svc := make(chan event.GenericEvent, 1)
 	serviceSource := &source.Channel{Source: svc}
 
-	podChanTrig := make(chan string)
+	podChanTrig := make(subscriber.SubsChan)
 
 	queue := broker.NewBlockingChannel(1)
 
@@ -173,7 +174,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dplChanTrig := make(chan string)
+	dplChanTrig := make(subscriber.SubsChan)
 	dplCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Deployment, nil), "deployment-collector",
 		collectors.WithSubscribersChan(dplChanTrig),
@@ -189,7 +190,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	rsChanTrig := make(chan string)
+	rsChanTrig := make(subscriber.SubsChan)
 	rsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.ReplicaSet, nil), "replicaset-collector",
 		collectors.WithSubscribersChan(rsChanTrig),
@@ -205,7 +206,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	nsChanTrig := make(chan string)
+	nsChanTrig := make(subscriber.SubsChan)
 	nsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Namespace, nil), "namespace-collector",
 		collectors.WithSubscribersChan(nsChanTrig),
@@ -216,7 +217,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dsChanTrig := make(chan string)
+	dsChanTrig := make(subscriber.SubsChan)
 	dsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Daemonset, nil), "daemonset-collector",
 		collectors.WithSubscribersChan(dsChanTrig),
@@ -232,7 +233,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	rcChanTrig := make(chan string)
+	rcChanTrig := make(subscriber.SubsChan)
 	rcCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.ReplicationController, nil), "replicationcontroller-collector",
 		collectors.WithSubscribersChan(rcChanTrig),
@@ -248,7 +249,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	svcChanTrig := make(chan string)
+	svcChanTrig := make(subscriber.SubsChan)
 
 	svcCollector := collectors.NewServiceCollector(mgr.GetClient(), queue, events.NewCache(), "service-collector",
 		collectors.WithExternalSource(serviceSource),
@@ -282,7 +283,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	br, err := broker.New(ctrl.Log.WithName("broker"), queue, map[string]chan<- string{
+	br, err := broker.New(ctrl.Log.WithName("broker"), queue, map[string]subscriber.SubsChan{
 		resource.Pod:                   podChanTrig,
 		resource.Deployment:            dplChanTrig,
 		resource.ReplicaSet:            rsChanTrig,

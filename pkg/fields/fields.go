@@ -70,7 +70,6 @@ func (m *Metadata) UpdateLabels(l map[string]string) bool {
 		m.labels = l
 		return true
 	}
-
 	return false
 }
 
@@ -114,22 +113,51 @@ func (r *References) ToFlatMap() map[string][]string {
 		}
 		flatMap[key] = refs
 	}
-
 	return flatMap
 }
 
-// Nodes custom type for nodes to which a given event need to be sent.
-type Nodes map[string]struct{}
+// Subscribers custom type for subscribers to which a given event need to be sent.
+// The key is the subscriber's UID.
+type Subscribers map[string]struct{}
 
-// ToSlice returns a slice containing all the nodes.
-func (n *Nodes) ToSlice() []string {
-	nodes := make([]string, len(*n))
+// Add adds a subscriber.
+func (s Subscribers) Add(sub string) {
+	s[sub] = struct{}{}
+}
 
-	index := 0
-	for key := range *n {
-		nodes[index] = key
-		index++
+// Delete deletes a subscriber.
+func (s Subscribers) Delete(sub string) {
+	delete(s, sub)
+}
+
+// Has returns true if a subcriber is present.
+func (s Subscribers) Has(sub string) bool {
+	_, ok := s[sub]
+	return ok
+}
+
+// Intersect returns the intersection with the given set.
+func (s Subscribers) Intersect(subs Subscribers) Subscribers {
+	intersection := make(Subscribers)
+	s1, s2 := s, subs
+	if len(s1) > len(s2) {
+		s1, s2 = s2, s1
 	}
+	for sub := range s1 {
+		if _, ok := s2[sub]; ok {
+			intersection[sub] = struct{}{}
+		}
+	}
+	return intersection
+}
 
-	return nodes
+// Difference returns the difference ( all the members of the initial set that are not members of the given set).
+func (s Subscribers) Difference(subs Subscribers) Subscribers {
+	setDifference := make(Subscribers)
+	for sub := range s {
+		if _, ok := subs[sub]; !ok {
+			setDifference[sub] = struct{}{}
+		}
+	}
+	return setDifference
 }

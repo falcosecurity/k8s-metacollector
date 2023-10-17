@@ -17,8 +17,10 @@ package collectors
 import (
 	"context"
 	"encoding/json"
+	"sort"
 
 	"github.com/go-logr/logr"
+	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -38,19 +40,30 @@ import (
 	"github.com/alacuku/k8s-metadata/pkg/events"
 	"github.com/alacuku/k8s-metadata/pkg/fields"
 	"github.com/alacuku/k8s-metadata/pkg/resource"
+	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 // PodCollector collects pods' metadata, puts them in a local cache and generates appropriate
 // events when such resources change over time.
 type PodCollector struct {
 	client.Client
-	queue           broker.Queue
-	cache           *events.Cache
+	queue broker.Queue
+	cache *events.Cache
+	// Sources where to trigger events when an owner need to be notified about a change.
 	ownersSources   map[string]chan<- event.GenericEvent
 	endpointsSource source.Source
 	name            string
-	subscriberChan  <-chan string
-	logger          logr.Logger
+	// subscriberChan where new subscribers notify their presence.
+	subscriberChan subscriber.SubsChan
+	logger         logr.Logger
+	// dispatcherSource is used to get events enqueued by the dispatcher based
+	// on subscribers' arrival.
+	dispatcherSource source.Source
+	// dispatcherChan is the channel where the dispatcher pushes the new requests to be enqueued and
+	// processed by the reconciler.
+	dispatcherChan chan event.GenericEvent
+	// subscribers current subscribers that are interested for pod resources.
+	subscribers *subscriber.Subscribers
 }
 
 // NewPodCollector returns a new pod collector.
@@ -60,14 +73,19 @@ func NewPodCollector(cl client.Client, queue broker.Queue, cache *events.Cache, 
 		o(&opts)
 	}
 
+	dc := make(chan event.GenericEvent, 1)
+
 	return &PodCollector{
-		Client:          cl,
-		queue:           queue,
-		cache:           cache,
-		ownersSources:   opts.ownerSources,
-		endpointsSource: opts.externalSource,
-		name:            name,
-		subscriberChan:  opts.subscriberChan,
+		Client:           cl,
+		queue:            queue,
+		cache:            cache,
+		ownersSources:    opts.ownerSources,
+		endpointsSource:  opts.externalSource,
+		name:             name,
+		subscriberChan:   opts.subscriberChan,
+		dispatcherSource: &source.Channel{Source: dc},
+		dispatcherChan:   dc,
+		subscribers:      subscriber.NewSubscribers(),
 	}
 }
 
@@ -79,6 +97,8 @@ func NewPodCollector(cl client.Client, queue broker.Queue, cache *events.Cache, 
 func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var pod corev1.Pod
 	var pRes *events.Resource
+	var cEntry *events.CacheEntry
+
 	var err error
 	var ok, podDeleted bool
 	logReq := log.FromContext(ctx)
@@ -103,39 +123,94 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	logReq.V(5).Info("pod found")
 
-	// Check if the resource has already been cached.
-	if pRes, ok = pc.cache.Get(req.String()); !ok {
-		// If first time, then we just create a new cache entry for it.
-		logReq.V(3).Info("never met this resource in my life")
+	// Create the resource and populate all its fields.
+	if !podDeleted {
+		// Get all subscribers for the resource based on its node name.
+		// The subscribers are used to compute to which subscribers we need to send an event
+		// and of which type, Create, Delete or Update.
+		subs := pc.subscribers.GetSubscribersPerNode(pod.Spec.NodeName)
+		// If no subscribers, just exit.
+		if subs == nil {
+			// Make sure to remove the cache entry for the resource.
+			// This could happen when a subscriber closes its connection.
+			pc.cache.Delete(req.String())
+			return ctrl.Result{}, nil
+		}
+
+		// Create a new events.Resource and fill its fields.
 		pRes = events.NewResource(resource.Pod, string(pod.UID))
-		if err = pc.NamespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+		// Add namespace reference.
+		if err = pc.namespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
-	}
-
-	// The resource has been created, or updated. Compute if we need to propagate events.
-	// The outcome is saved internally to the resource. See AddNodes method for more info.
-	if !podDeleted {
 		// Get the owner references for the current resource. Note that we get the owner references
 		// only for the one that are controllers.
-		if err := pc.OwnerRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+		if err := pc.ownerRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
-
 		// Get references for all the services that are serving traffic to the current pod.
-		if err = pc.ServiceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+		if err = pc.serviceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+			return ctrl.Result{}, err
+		}
+		// Fill resource fields.
+		if err = pc.objFieldsHandler(logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		if err = pc.ObjFieldsHandler(logReq, pRes, &pod); err != nil {
+		// Hash the current resource.
+		hash, err := hashstructure.Hash(*pRes, hashstructure.FormatV2, nil)
+		if err != nil {
+			logReq.Error(err, "unable to hash resource")
 			return ctrl.Result{}, err
 		}
 
-		pRes.AddNodes([]string{pod.Spec.NodeName})
+		// Check if we have cached the resource previously.
+		if cEntry, ok = pc.cache.Get(req.String()); ok {
+			// If an entry exists for the resource then check if the hashes are the same.
+			// If not, it means that the resource fields have changes since the last time.
+			// so mark the resource as updated. The "update" flag is needed to generate "Update"
+			// events for the related subscribers.
+			if cEntry.Hash != hash {
+				pRes.SetUpdate(true)
+				cEntry.Hash = hash
+			}
+			// Set the previous subscribers in the current resource.
+			pRes.SetSubscribers(cEntry.Subs)
+		} else {
+			// If we never cached the resource then create an entry and add it to the cache.
+			cEntry = &events.CacheEntry{
+				Hash: hash,
+				UID:  pod.UID,
+				Subs: nil,
+			}
+			pc.cache.Add(req.String(), cEntry)
+		}
+
+		// Generate the subscribers, and save them in the entry cache.
+		cEntry.Subs = pRes.GenerateSubscribers(subs)
+		// Save the references. Needed when the resource is deleted.
+		cEntry.Refs = pRes.GetResourceReferences()
 	} else {
-		// If the resource has been deleted from the api-server, then we send a "Delete" event to all nodes
-		nodes := pRes.GetNodes()
-		pRes.DeleteNodes(nodes.ToSlice())
+		// Check if we have cached the resource.
+		if cEntry, ok = pc.cache.Get(req.String()); ok {
+			// Create the resource.
+			pRes = events.NewResource(resource.Pod, string(cEntry.UID))
+			// Set the previous subscribers and references.
+			pRes.SetSubscribers(cEntry.Subs)
+			pRes.ResourceReferences = cEntry.Refs
+			// The resource has been deleted. We need to send a delete event to
+			// the subscribers. By generating the subscribers from an empty set,
+			// is the same as to generate delete events for all the subscribers to which
+			// we sent an event.
+			pRes.GenerateSubscribers(nil)
+			// We are ready to remove the entry from the cache. No need to track anymore
+			// the deleted resource.
+			pc.cache.Delete(req.String())
+		} else {
+			// It means that we received a delete event for a resource that we never sent to any subscriber.
+			// In this case we just return.
+			return ctrl.Result{}, nil
+		}
 	}
 
 	// At this point our resource has all the necessary bits to know for each node which type of events need to be sent.
@@ -149,25 +224,20 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		switch evt.Type() {
 		case "Create":
 			// Perform actions for "Create" events.
-			// For each resource that generates an "Create" event, we need to add it to the cache.
-			pc.cache.Add(req.String(), pRes)
 			pc.triggerOwnersOnCreateEvent(pRes)
-		case "Update":
-			pc.cache.Update(req.String(), pRes)
 		case "Delete":
 			pc.triggerOwnersOnDeleteEvent(pRes)
-			pc.cache.Delete(req.String())
 		}
-		// Add event to the queue.
+		// Push event to the queue.
 		pc.queue.Push(evt)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-// OwnerRefsHandler extracts the owner references for a given pod and updates the related event.
+// ownerRefsHandler extracts the owner references for a given pod and updates the related event.
 // It takes in account only references for the owners that are also controllers of the pod resource.
-func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
+func (pc *PodCollector) ownerRefsHandler(ctx context.Context, logger logr.Logger, res *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -175,7 +245,7 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 	// Get the owner reference, and if set, get the uid of the owner.
 	owner := events.ManagingOwner(pod.OwnerReferences)
 	if owner != nil {
-		evt.AddReferencesForKind(owner.Kind, []fields.Reference{{
+		res.AddReferencesForKind(owner.Kind, []fields.Reference{{
 			Name: types.NamespacedName{
 				Namespace: pod.Namespace,
 				Name:      owner.Name,
@@ -195,7 +265,7 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 			}
 			owner = events.ManagingOwner(replicaset.OwnerReferences)
 			if owner != nil {
-				evt.AddReferencesForKind(owner.Kind, []fields.Reference{{
+				res.AddReferencesForKind(owner.Kind, []fields.Reference{{
 					Name: types.NamespacedName{
 						Namespace: pod.Namespace,
 						Name:      owner.Name,
@@ -209,8 +279,8 @@ func (pc *PodCollector) OwnerRefsHandler(ctx context.Context, logger logr.Logger
 	return nil
 }
 
-// ServiceRefsHandler get the UID of each service serving the given pod and update the related event.
-func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
+// serviceRefsHandler get the UID of each service serving the given pod and update the related resource.
+func (pc *PodCollector) serviceRefsHandler(ctx context.Context, logger logr.Logger, res *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -237,13 +307,17 @@ func (pc *PodCollector) ServiceRefsHandler(ctx context.Context, logger logr.Logg
 		}
 	}
 
-	evt.AddReferencesForKind(resource.Service, svcRefs)
+	// Need to sort for the hashing function.
+	sort.Slice(svcRefs, func(i, j int) bool {
+		return svcRefs[i].UID < svcRefs[j].UID
+	})
+	res.AddReferencesForKind(resource.Service, svcRefs)
 
 	return nil
 }
 
-// ObjFieldsHandler populates the evt from the object.
-func (pc *PodCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
+// objFieldsHandler populates the resource from the object.
+func (pc *PodCollector) objFieldsHandler(logger logr.Logger, res *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -266,20 +340,20 @@ func (pc *PodCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Resourc
 	if err != nil {
 		return err
 	}
-	evt.SetMeta(string(metaString))
+	res.SetMeta(string(metaString))
 
 	// Marshal status to json.
 	statusString, err := json.Marshal(podUn["status"])
 	if err != nil {
 		return err
 	}
-	evt.SetStatus(string(statusString))
+	res.SetStatus(string(statusString))
 
 	return nil
 }
 
-// NamespaceRefsHandler get the UID of the namespace of the given pod and update the related event.
-func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Logger, evt *events.Resource, pod *corev1.Pod) error {
+// namespaceRefsHandler get the UID of the namespace of the given pod and update the related event.
+func (pc *PodCollector) namespaceRefsHandler(ctx context.Context, logger logr.Logger, res *events.Resource, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
 	}
@@ -296,7 +370,7 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 		return err
 	}
 
-	evt.AddReferencesForKind(resource.Namespace, []fields.Reference{{
+	res.AddReferencesForKind(resource.Namespace, []fields.Reference{{
 		Name: nsKey,
 		UID:  namespace.UID,
 	}})
@@ -304,8 +378,8 @@ func (pc *PodCollector) NamespaceRefsHandler(ctx context.Context, logger logr.Lo
 	return nil
 }
 
-func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.Resource) {
-	refs := evt.GetResourceReferences()
+func (pc *PodCollector) triggerOwnersOnDeleteEvent(res *events.Resource) {
+	refs := res.GetResourceReferences()
 	for kind, refs := range refs {
 		ch, ok := pc.ownersSources[kind]
 		if !ok {
@@ -327,8 +401,8 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(evt *events.Resource) {
 	}
 }
 
-func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.Resource) {
-	refs := evt.GetResourceReferences()
+func (pc *PodCollector) triggerOwnersOnCreateEvent(res *events.Resource) {
+	refs := res.GetResourceReferences()
 	for kind, refs := range refs {
 		ch, ok := pc.ownersSources[kind]
 		if !ok {
@@ -353,7 +427,7 @@ func (pc *PodCollector) triggerOwnersOnCreateEvent(evt *events.Resource) {
 // using the manager. It starts go routines needed by the collector to interact with the
 // broker.
 func (pc *PodCollector) Start(ctx context.Context) error {
-	return dispatch(ctx, pc.logger, pc.subscriberChan, pc.queue, pc.cache)
+	return dispatch(ctx, pc.logger, resource.Pod, pc.subscriberChan, pc.dispatcherChan, pc.Client, pc.subscribers)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -382,8 +456,12 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{},
 			builder.WithPredicates(predicatesWithMetrics(pc.name, apiServerSource, nodeNameFilter))).
-		WatchesRawSource(pc.endpointsSource, &handler.EnqueueRequestForObject{},
+		WatchesRawSource(pc.endpointsSource,
+			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(predicatesWithMetrics(pc.name, resource.EndpointSlice, nil))).
+		WatchesRawSource(pc.dispatcherSource,
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicatesWithMetrics(pc.name, "dispatcher", nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
 		Complete(pc)
 }
