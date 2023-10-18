@@ -243,6 +243,36 @@
             "fixedColor": "blue",
             "mode": "fixed"
           },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -268,16 +298,16 @@
       },
       "id": 41,
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": false
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "pluginVersion": "9.5.1",
       "targets": [
@@ -294,7 +324,7 @@
         }
       ],
       "title": "Subscribers",
-      "type": "gauge"
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -393,7 +423,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
+        "x": 7,
         "y": 16
       },
       "id": 23,
@@ -443,72 +473,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 16
-      },
-      "id": 26,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.5.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "builder",
-          "expr": "sum by(job) (meta_collector_collector_event_subscribers_sent{pod=\"$pod\", namespace=\"$namespace\"})",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Total Events",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Events sents to libs showed per collector.",
+      "description": "Events sent to subscribers",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -557,13 +522,15 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum by(name) (meta_collector_collector_event_subscribers_sent{pod=\"$pod\", namespace=\"$namespace\"})",
-          "legendFormat": "__auto",
+          "exemplar": false,
+          "expr": "sum by(kind) (meta_collector_broker_dispatched_events{pod=\"$pod\", namespace=\"$namespace\"})",
+          "format": "time_series",
+          "legendFormat": "{{kind}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Events Per Collector",
+      "title": "Events Dispatched Per Resource Kind",
       "type": "bargauge"
     },
     {
@@ -599,7 +566,7 @@
         "x": 12,
         "y": 24
       },
-      "id": 25,
+      "id": 26,
       "options": {
         "colorMode": "none",
         "graphMode": "none",
@@ -622,13 +589,13 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "sum(meta_collector_collector_event_api_server_received{pod=\"$pod\", namespace=\"$namespace\", source=\"api-server\"})",
+          "expr": "sum by(job) (meta_collector_broker_dispatched_events{pod=\"$pod\", namespace=\"$namespace\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Events Received from api-server",
+      "title": "Total Events Dispatched",
       "type": "stat"
     },
     {
@@ -699,41 +666,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "How long in seconds an item stays in the broker queue before being processed by the broker.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
@@ -746,199 +682,49 @@
               {
                 "color": "red",
                 "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "P50 blockingChannel 10.16.1.4:8080 "
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
               }
             ]
           }
-        ]
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 32
-      },
-      "id": 13,
-      "options": {
-        "legend": {
-          "calcs": [
-            "max",
-            "mean"
-          ],
-          "displayMode": "list",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "builder",
-          "exemplar": true,
-          "expr": "histogram_quantile(0.5, sum by(instance, name, le) (rate(meta_collector_broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
-          "interval": "",
-          "legendFormat": "P50 {{name}} {{instance}} ",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "builder",
-          "exemplar": true,
-          "expr": "histogram_quantile(0.9, sum by(instance, name, le) (rate(broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "P90 {{name}} {{instance}} ",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "builder",
-          "exemplar": true,
-          "expr": "histogram_quantile(0.99, sum by(instance, name, le) (rate(broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "P99 {{name}} {{instance}} ",
-          "range": true,
-          "refId": "C"
-        }
-      ],
-      "title": "Seconds For Items Stay In Broker Queue (before being proccesed) (P50, P90, P99)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Total number of retries handled by workqueue",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "scheme",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 3,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "ops"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 32
       },
-      "id": 34,
+      "id": 25,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "textMode": "auto"
       },
+      "pluginVersion": "9.5.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "exemplar": true,
-          "expr": "sum(rate(workqueue_retries_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name)",
-          "interval": "",
-          "legendFormat": "{{name}} {{instance}} ",
+          "editorMode": "builder",
+          "expr": "sum(meta_collector_collector_event_api_server_received{pod=\"$pod\", namespace=\"$namespace\", source=\"api-server\"})",
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
-      "title": "Work Queue Retries Rate",
-      "type": "timeseries"
+      "title": "Events Received from api-server",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -1066,11 +852,11 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Total number of reconciliation errors per controller",
+      "description": "How long in seconds an item stays in the broker queue before being processed by the broker.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-GrYlRd"
+            "mode": "palette-classic"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -1079,15 +865,15 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "scheme",
+            "fillOpacity": 10,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "smooth",
-            "lineWidth": 3,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -1096,7 +882,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -1116,22 +902,50 @@
               }
             ]
           },
-          "unit": "cpm"
+          "unit": "s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "P50 blockingChannel 10.16.1.4:8080 "
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 40
       },
-      "id": 32,
+      "id": 13,
       "options": {
         "legend": {
-          "calcs": [],
+          "calcs": [
+            "max",
+            "mean"
+          ],
           "displayMode": "list",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -1145,16 +959,44 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "editorMode": "code",
+          "editorMode": "builder",
           "exemplar": true,
-          "expr": "sum(rate(controller_runtime_reconcile_errors_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, pod)",
+          "expr": "histogram_quantile(0.5, sum by(instance, name, le) (rate(meta_collector_broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
           "interval": "",
-          "legendFormat": "{{instance}} {{pod}}",
+          "legendFormat": "P50 {{name}} {{instance}} ",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": true,
+          "expr": "histogram_quantile(0.9, sum by(instance, name, le) (rate(broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "P90 {{name}} {{instance}} ",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": true,
+          "expr": "histogram_quantile(0.99, sum by(instance, name, le) (rate(broker_queue_duration_seconds_bucket{pod=\"$pod\", namespace=\"$namespace\"}[5m])))",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "P99 {{name}} {{instance}} ",
+          "range": true,
+          "refId": "C"
         }
       ],
-      "title": "Reconciliation Error Count Per Controller",
+      "title": "Seconds For Items Stay In Broker Queue (before being proccesed) (P50, P90, P99)",
       "type": "timeseries"
     },
     {
@@ -1283,7 +1125,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Total number of reconciliations per controller",
+      "description": "Total number of retries handled by workqueue",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1333,7 +1175,7 @@
               }
             ]
           },
-          "unit": "cpm"
+          "unit": "ops"
         },
         "overrides": []
       },
@@ -1341,9 +1183,9 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 53
+        "y": 47
       },
-      "id": 31,
+      "id": 34,
       "options": {
         "legend": {
           "calcs": [],
@@ -1362,16 +1204,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(controller_runtime_reconcile_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, pod)",
+          "expr": "sum(rate(workqueue_retries_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, name)",
           "interval": "",
-          "legendFormat": "{{instance}} {{pod}}",
-          "range": true,
+          "legendFormat": "{{name}} {{instance}} ",
           "refId": "A"
         }
       ],
-      "title": "Total Reconciliation Count Per Controller",
+      "title": "Work Queue Retries Rate",
       "type": "timeseries"
     },
     {
@@ -1467,6 +1307,198 @@
       ],
       "title": "Work Queue Add Rate",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Total number of reconciliation errors per controller",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 3,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "cpm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(controller_runtime_reconcile_errors_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, pod)",
+          "interval": "",
+          "legendFormat": "{{instance}} {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Reconciliation Error Count Per Controller",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Total number of reconciliations per controller",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 3,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "cpm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 61
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(controller_runtime_reconcile_total{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, pod)",
+          "interval": "",
+          "legendFormat": "{{instance}} {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Total Reconciliation Count Per Controller",
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
@@ -1504,8 +1536,8 @@
       {
         "current": {
           "selected": false,
-          "text": "meta-collector-89946bc6c-ntlzj",
-          "value": "meta-collector-89946bc6c-ntlzj"
+          "text": "meta-collector-585d94f758-bpsxm",
+          "value": "meta-collector-585d94f758-bpsxm"
         },
         "datasource": {
           "type": "prometheus",
@@ -1563,6 +1595,6 @@
   "timezone": "",
   "title": "Falco Meta Collector",
   "uid": "T0NvRcb4z",
-  "version": 4,
+  "version": 1,
   "weekStart": ""
 }
