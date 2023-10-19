@@ -11,6 +11,7 @@ linters-settings:
       const:
         AUTHORS: The Falco Authors
     template: |-
+      SPDX-License-Identifier: Apache-2.0
       Copyright {{ YEAR }} {{ AUTHORS }}
 
       Licensed under the Apache License, Version 2.0 (the "License");
