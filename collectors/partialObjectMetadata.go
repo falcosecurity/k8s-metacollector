@@ -185,7 +185,7 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Check if we have cached the resource.
 		if cEntry, ok = r.cache.Get(req.String()); ok {
 			// Create the resource.
-			res = events.NewResource(resource.Pod, string(cEntry.UID))
+			res = events.NewResource(r.resource.Kind, string(cEntry.UID))
 			// Set the previous subscribers.
 			res.SetSubscribers(cEntry.Subs)
 			// The resource has been deleted. We need to send a delete event to

@@ -164,7 +164,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Only if we have sent previously the resource.
 		if cEntry, ok = r.cache.Get(req.String()); ok {
 			// Check if we have cached the resource.
-			sRes = events.NewResource(resource.Pod, string(cEntry.UID))
+			sRes = events.NewResource(resource.Service, string(cEntry.UID))
 			sRes.SetSubscribers(cEntry.Subs)
 			sRes.GenerateSubscribers(nil)
 			// We are ready to remove the entry from the cache. No need to track anymore
