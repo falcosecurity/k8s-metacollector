@@ -79,7 +79,7 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 						}}
 					case resource.ReplicaSet:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
-						if owner.Kind == resource.ReplicaSet {
+						if owner != nil && owner.Kind == resource.ReplicaSet {
 							dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
 								ObjectMeta: metav1.ObjectMeta{
 									Name:      owner.Name,
@@ -89,7 +89,7 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 						}
 					case resource.ReplicationController:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
-						if owner.Kind == resource.ReplicationController {
+						if owner != nil && owner.Kind == resource.ReplicationController {
 							dispatcherChan <- event.GenericEvent{Object: &corev1.ReplicationController{
 								ObjectMeta: metav1.ObjectMeta{
 									Name:      owner.Name,
@@ -99,7 +99,7 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 						}
 					case resource.Daemonset:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
-						if owner.Kind == resource.Daemonset {
+						if owner != nil && owner.Kind == resource.Daemonset {
 							dispatcherChan <- event.GenericEvent{Object: &appsv1.DaemonSet{
 								ObjectMeta: metav1.ObjectMeta{
 									Name:      owner.Name,
@@ -109,7 +109,7 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 						}
 					case resource.Deployment:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
-						if owner.Kind == resource.ReplicaSet {
+						if owner != nil && owner.Kind == resource.ReplicaSet {
 							// Get the replicaset.
 							if err := cl.Get(ctx, types.NamespacedName{
 								Namespace: podList.Items[podIndex].Namespace,
@@ -118,8 +118,8 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 								logger.Error(err, "unable to dispatch events", "subscriber", sub, "resourceKind", resourceKind)
 								continue
 							}
-							owner := events.ManagingOwner(replicaSet.OwnerReferences)
-							if owner.Kind == resource.Deployment {
+							owner = events.ManagingOwner(replicaSet.OwnerReferences)
+							if owner != nil && owner.Kind == resource.Deployment {
 								dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
 									ObjectMeta: metav1.ObjectMeta{
 										Name:      owner.Name,
