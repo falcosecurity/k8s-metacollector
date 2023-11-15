@@ -3,6 +3,8 @@ The repository is still work in progress.
 
 # k8s-meta-collector
 
+[![Falco Ecosystem Repository](https://github.com/falcosecurity/evolution/blob/main/repos/badges/falco-ecosystem-blue.svg)](https://github.com/falcosecurity/evolution/blob/main/REPOSITORIES.md#ecosystem-scope) [![Incubating](https://img.shields.io/badge/status-incubating-orange?style=for-the-badge)](https://github.com/falcosecurity/evolution/blob/main/REPOSITORIES.md#incubating)
+
 The "K8s Meta Collector" is a self-contained module that can be deployed within a Kubernetes cluster to perform the task
 of gathering metadata from various Kubernetes resources and subsequently transmitting this collected metadata to
 designated subscribers.
