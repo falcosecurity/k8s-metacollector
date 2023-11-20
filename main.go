@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/falcosecurity/k8s-metacollector/broker"
@@ -25,6 +26,7 @@ import (
 	"github.com/falcosecurity/k8s-metacollector/pkg/events"
 	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
+	"github.com/falcosecurity/k8s-metacollector/pkg/version"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -59,18 +61,25 @@ func main() {
 	var brokerAddr string
 	var certFilePath string
 	var keyFilePath string
+	var versionFlag bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&brokerAddr, "broker-bind-address", ":45000", "The address the broker endpoint binds to.")
 	flag.StringVar(&certFilePath, "broker-server-cert", "", "Cert file path for grpc server.")
 	flag.StringVar(&keyFilePath, "broker-server-key", "", "Key file path for grpc server.")
+	flag.BoolVar(&versionFlag, "version", false, "Print version.")
 
 	opts := zap.Options{
 		Development: false,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	if versionFlag {
+		fmt.Println(version.Version())
+		os.Exit(0)
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
