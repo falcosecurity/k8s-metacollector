@@ -33,7 +33,7 @@ type Resource struct {
 	// Only used when storing metadata for pods.
 	ResourceReferences fields.References
 	// Tracks the nodes to which we have already sent the resource.
-	subs fields.Subscribers `hash: "ignore"`
+	subs fields.Subscribers `hash:"ignore"`
 	// State fields that are needed to track the nodes to which we need to send
 	// the resource. This fields thought to be used by the methods of the Resource.
 	createdFor fields.Subscribers `hash:"ignore"`
