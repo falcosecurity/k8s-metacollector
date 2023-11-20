@@ -11,6 +11,12 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# version settings
+RELEASE?=$(shell git rev-parse HEAD)
+COMMIT?=$(shell git rev-parse HEAD)
+BUILD_DATE?=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+PROJECT?=github.com/falcosecurity/k8s-metacollector
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -58,7 +64,11 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -ldflags \
+    "-X '${PROJECT}/pkg/version.semVersion=${RELEASE}' \
+    -X '${PROJECT}/pkg/version.gitCommit=${COMMIT}' \
+    -X '${PROJECT}/pkg/version.buildDate=${BUILD_DATE}'" \
+    -o manager .
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
