@@ -18,7 +18,7 @@ package broker
 import (
 	"context"
 
-	"github.com/alacuku/k8s-metadata/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
 )
 
 // Queue used to dispatch events from the collectors to the broker.

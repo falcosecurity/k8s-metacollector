@@ -18,7 +18,7 @@ package subscriber
 import (
 	"sync"
 
-	"github.com/alacuku/k8s-metadata/pkg/fields"
+	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
 )
 
 // Subscribers for generic items.

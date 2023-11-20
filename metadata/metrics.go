@@ -16,10 +16,9 @@
 package metadata
 
 import (
+	"github.com/falcosecurity/k8s-metacollector/pkg/consts"
 	"github.com/prometheus/client_golang/prometheus"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
-
-	"github.com/alacuku/k8s-metadata/pkg/consts"
 )
 
 const (

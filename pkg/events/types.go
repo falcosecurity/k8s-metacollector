@@ -16,9 +16,9 @@
 package events
 
 import (
-	"github.com/alacuku/k8s-metadata/metadata"
-	"github.com/alacuku/k8s-metadata/pkg/fields"
-	"github.com/alacuku/k8s-metadata/pkg/resource"
+	"github.com/falcosecurity/k8s-metacollector/metadata"
+	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 )
 
 // Resource event that holds metadata fields for k8s resources.

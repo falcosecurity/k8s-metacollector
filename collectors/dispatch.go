@@ -19,6 +19,9 @@ import (
 	"context"
 	"sync"
 
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,10 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-
-	"github.com/alacuku/k8s-metadata/pkg/events"
-	"github.com/alacuku/k8s-metadata/pkg/resource"
-	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subChan subscriber.SubsChan,

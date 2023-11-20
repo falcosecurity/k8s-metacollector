@@ -20,6 +20,11 @@ import (
 	"flag"
 	"os"
 
+	"github.com/falcosecurity/k8s-metacollector/broker"
+	"github.com/falcosecurity/k8s-metacollector/collectors"
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -36,12 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/alacuku/k8s-metadata/broker"
-	"github.com/alacuku/k8s-metadata/collectors"
-	"github.com/alacuku/k8s-metadata/pkg/events"
-	"github.com/alacuku/k8s-metadata/pkg/resource"
-	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 var (

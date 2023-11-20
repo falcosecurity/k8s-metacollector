@@ -16,8 +16,8 @@
 package events
 
 import (
-	"github.com/alacuku/k8s-metadata/metadata"
-	"github.com/alacuku/k8s-metadata/pkg/fields"
+	"github.com/falcosecurity/k8s-metacollector/metadata"
+	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
 )
 
 // Interface must be satisfied by events generated for each supported k8s resource.
