@@ -1,0 +1,97 @@
+name: Integration Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        goos:
+          - linux
+        goarch:
+          - arm64
+          - amd64
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: '1.21.1'
+          check-latest: true
+
+      - name: Build k8s-metacollector
+        run: >
+          go build -ldflags="-s -w" -o k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }} .
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+      - name: Create Archives
+        run: |
+          cp k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }} k8s-metacollector
+          tar -czvf k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz k8s-metacollector LICENSE
+
+      - name: Upload k8s-metacollector artifacts
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}
+          retention-days: 1
+
+      - name: Upload k8s-metacollector archives
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          path: ./k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          retention-days: 1
+
+  docker-configure:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-22.04
+    outputs:
+      release: ${{ steps.vars.outputs.release }}
+      commit: ${{ steps.vars.outputs.commit }}
+      build_date: ${{ steps.vars.outputs.build_date }}
+    steps:
+      - name: Set version fields
+        id: vars
+        run: |
+          echo "release=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "commit=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+  docker-image:
+    if: ${{ github.event_name == 'push' }}
+    needs: docker-configure
+    uses: ./.github/workflows/docker-image.yaml
+    secrets: inherit
+    with:
+      release: ${{ needs.docker-configure.outputs.release }}
+      commit: ${{ needs.docker-configure.outputs.commit }}
+      build_date: ${{ needs.docker-configure.outputs.build_date }}
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Setup Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: '1.21.1'
+          check-latest: true
+
+      - name: Run tests
+        run: go test -cover ./...
