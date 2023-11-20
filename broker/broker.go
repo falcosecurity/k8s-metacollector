@@ -21,13 +21,12 @@ import (
 	"net"
 	"sync"
 
+	"github.com/falcosecurity/k8s-metacollector/metadata"
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	"github.com/alacuku/k8s-metadata/metadata"
-	"github.com/alacuku/k8s-metadata/pkg/events"
-	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 // Broker receives events from the collectors and sends them to the subscribers.

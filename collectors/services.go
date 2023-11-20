@@ -19,6 +19,11 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/falcosecurity/k8s-metacollector/broker"
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	"github.com/go-logr/logr"
 	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -33,12 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/alacuku/k8s-metadata/broker"
-	"github.com/alacuku/k8s-metadata/pkg/events"
-	"github.com/alacuku/k8s-metadata/pkg/fields"
-	"github.com/alacuku/k8s-metadata/pkg/resource"
-	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 // ServiceCollector collects services' metadata, puts them in a local cache and generates appropriate

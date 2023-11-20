@@ -18,13 +18,12 @@ package collectors
 import (
 	"fmt"
 
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	toolscache "k8s.io/client-go/tools/cache"
-
-	"github.com/alacuku/k8s-metadata/pkg/resource"
 )
 
 // PodTransformer transforms the pod objects received from the api-server

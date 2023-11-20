@@ -18,10 +18,9 @@ package metadata
 import (
 	"sync"
 
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/util/uuid"
-
-	"github.com/alacuku/k8s-metadata/pkg/subscriber"
 )
 
 // Connection used to track a subscriber connection. Each time a subscriber arrives a
