@@ -1,0 +1,655 @@
+[
+	{
+		"reason": "Create",
+		"uid": "9475da1c-3aa7-477a-8a2e-ca9b470d72c0",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-q9cxf\",\"namespace\":\"default\",\"uid\":\"9475da1c-3aa7-477a-8a2e-ca9b470d72c0\"}",
+		"status": "{\"podIP\":\"10.16.1.6\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "67bfb6d3-a71f-4f03-a7e3-e0dc1d0ed294",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"kube-proxy-\",\"labels\":{\"controller-revision-hash\":\"848d699bdc\",\"k8s-app\":\"kube-proxy\",\"pod-template-generation\":\"1\"},\"name\":\"kube-proxy-72v6s\",\"namespace\":\"kube-system\",\"uid\":\"67bfb6d3-a71f-4f03-a7e3-e0dc1d0ed294\"}",
+		"status": "{\"podIP\":\"192.168.1.31\"}",
+		"refs": {
+			"resources": {
+				"DaemonSet": {
+					"list": [
+						"b3596254-e9ad-45f5-9c13-1141c8f851a3"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"c51d0620-b1e1-449a-a6f2-9f96830831a9"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "77564092-5c22-4830-8249-b4830b3b836e",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"kube-flannel-ds-\",\"labels\":{\"app\":\"flannel\",\"controller-revision-hash\":\"fc598f5d\",\"pod-template-generation\":\"1\",\"tier\":\"node\"},\"name\":\"kube-flannel-ds-99qcd\",\"namespace\":\"kube-flannel\",\"uid\":\"77564092-5c22-4830-8249-b4830b3b836e\"}",
+		"status": "{\"podIP\":\"192.168.1.31\"}",
+		"refs": {
+			"resources": {
+				"DaemonSet": {
+					"list": [
+						"e570f25b-d90d-4f71-9730-d7aa61e0fbe0"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"89a82c69-6855-4634-8bdc-574a3f863a00"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "fd875835-0752-4190-b640-ea31b20e2cb3",
+		"kind": "Service",
+		"meta": "{\"labels\":{\"component\":\"apiserver\",\"provider\":\"kubernetes\"},\"name\":\"kubernetes\",\"namespace\":\"default\",\"uid\":\"fd875835-0752-4190-b640-ea31b20e2cb3\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "f2e2a261-ba86-4fa6-9493-e5260a106126",
+		"kind": "ReplicationController",
+		"meta": "{\"annotations\":{\"kubectl.kubernetes.io/last-applied-configuration\":\"{\\\"apiVersion\\\":\\\"v1\\\",\\\"kind\\\":\\\"ReplicationController\\\",\\\"metadata\\\":{\\\"annotations\\\":{},\\\"name\\\":\\\"nginx\\\",\\\"namespace\\\":\\\"default\\\"},\\\"spec\\\":{\\\"replicas\\\":3,\\\"selector\\\":{\\\"app\\\":\\\"nginx\\\"},\\\"template\\\":{\\\"metadata\\\":{\\\"labels\\\":{\\\"app\\\":\\\"nginx\\\"},\\\"name\\\":\\\"nginx\\\"},\\\"spec\\\":{\\\"containers\\\":[{\\\"image\\\":\\\"nginx\\\",\\\"name\\\":\\\"nginx\\\",\\\"ports\\\":[{\\\"containerPort\\\":80}]}]}}}}\\n\"},\"generation\":1,\"labels\":{\"app\":\"nginx\"},\"managedFields\":[{\"apiVersion\":\"v1\",\"fieldsType\":\"FieldsV1\",\"fieldsV1\":{\"f:metadata\":{\"f:annotations\":{\".\":{},\"f:kubectl.kubernetes.io/last-applied-configuration\":{}},\"f:labels\":{\".\":{},\"f:app\":{}}},\"f:spec\":{\"f:replicas\":{},\"f:selector\":{},\"f:template\":{\".\":{},\"f:metadata\":{\".\":{},\"f:creationTimestamp\":{},\"f:labels\":{\".\":{},\"f:app\":{}},\"f:name\":{}},\"f:spec\":{\".\":{},\"f:containers\":{\".\":{},\"k:{\\\"name\\\":\\\"nginx\\\"}\":{\".\":{},\"f:image\":{},\"f:imagePullPolicy\":{},\"f:name\":{},\"f:ports\":{\".\":{},\"k:{\\\"containerPort\\\":80,\\\"protocol\\\":\\\"TCP\\\"}\":{\".\":{},\"f:containerPort\":{},\"f:protocol\":{}}},\"f:resources\":{},\"f:terminationMessagePath\":{},\"f:terminationMessagePolicy\":{}}},\"f:dnsPolicy\":{},\"f:restartPolicy\":{},\"f:schedulerName\":{},\"f:securityContext\":{},\"f:terminationGracePeriodSeconds\":{}}}}},\"manager\":\"kubectl-client-side-apply\",\"operation\":\"Update\",\"time\":\"2023-10-02T12:39:37Z\"},{\"apiVersion\":\"v1\",\"fieldsType\":\"FieldsV1\",\"fieldsV1\":{\"f:status\":{\"f:availableReplicas\":{},\"f:fullyLabeledReplicas\":{},\"f:observedGeneration\":{},\"f:readyReplicas\":{},\"f:replicas\":{}}},\"manager\":\"kube-controller-manager\",\"operation\":\"Update\",\"subresource\":\"status\",\"time\":\"2023-10-02T12:40:05Z\"}],\"name\":\"nginx\",\"namespace\":\"default\",\"resourceVersion\":\"28106\",\"uid\":\"f2e2a261-ba86-4fa6-9493-e5260a106126\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "8be7cb9d-f96a-41b5-8fb0-81fda92a663a",
+		"kind": "ReplicaSet",
+		"meta": "{\"labels\":{\"k8s-app\":\"metrics-server\",\"pod-template-hash\":\"85d6fcf458\"},\"name\":\"metrics-server-85d6fcf458\",\"namespace\":\"kube-system\",\"uid\":\"8be7cb9d-f96a-41b5-8fb0-81fda92a663a\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "7617a251-8b06-4ae1-892c-92fc20930826",
+		"kind": "Namespace",
+		"meta": "{\"labels\":{\"kubernetes.io/metadata.name\":\"default\"},\"name\":\"default\",\"uid\":\"7617a251-8b06-4ae1-892c-92fc20930826\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "b3596254-e9ad-45f5-9c13-1141c8f851a3",
+		"kind": "DaemonSet",
+		"meta": "{\"labels\":{\"k8s-app\":\"kube-proxy\"},\"name\":\"kube-proxy\",\"namespace\":\"kube-system\",\"uid\":\"b3596254-e9ad-45f5-9c13-1141c8f851a3\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "e56cf37d-5b8b-4b2d-b7bc-3316a3d72e93",
+		"kind": "Deployment",
+		"meta": "{\"labels\":{\"k8s-app\":\"metrics-server\"},\"name\":\"metrics-server\",\"namespace\":\"kube-system\",\"uid\":\"e56cf37d-5b8b-4b2d-b7bc-3316a3d72e93\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "b2af0913-1a07-457f-986a-111caa4fb372",
+		"kind": "Service",
+		"meta": "{\"labels\":{\"k8s-app\":\"metrics-server\"},\"name\":\"metrics-server\",\"namespace\":\"kube-system\",\"uid\":\"b2af0913-1a07-457f-986a-111caa4fb372\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "5eaeeca9-2277-460b-a4bf-5a0783f6d49f",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"metrics-server-85d6fcf458-\",\"labels\":{\"k8s-app\":\"metrics-server\",\"pod-template-hash\":\"85d6fcf458\"},\"name\":\"metrics-server-85d6fcf458-tqkcv\",\"namespace\":\"kube-system\",\"uid\":\"5eaeeca9-2277-460b-a4bf-5a0783f6d49f\"}",
+		"status": "{\"podIP\":\"10.16.1.2\"}",
+		"refs": {
+			"resources": {
+				"Deployment": {
+					"list": [
+						"e56cf37d-5b8b-4b2d-b7bc-3316a3d72e93"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"c51d0620-b1e1-449a-a6f2-9f96830831a9"
+					]
+				},
+				"ReplicaSet": {
+					"list": [
+						"8be7cb9d-f96a-41b5-8fb0-81fda92a663a"
+					]
+				},
+				"Service": {
+					"list": [
+						"b2af0913-1a07-457f-986a-111caa4fb372"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "89a82c69-6855-4634-8bdc-574a3f863a00",
+		"kind": "Namespace",
+		"meta": "{\"labels\":{\"kubernetes.io/metadata.name\":\"kube-flannel\",\"pod-security.kubernetes.io/enforce\":\"privileged\"},\"name\":\"kube-flannel\",\"uid\":\"89a82c69-6855-4634-8bdc-574a3f863a00\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "c51d0620-b1e1-449a-a6f2-9f96830831a9",
+		"kind": "Namespace",
+		"meta": "{\"labels\":{\"kubernetes.io/metadata.name\":\"kube-system\"},\"name\":\"kube-system\",\"uid\":\"c51d0620-b1e1-449a-a6f2-9f96830831a9\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "50b886b2-2831-4e88-a43e-c9ee4eb66194",
+		"kind": "Namespace",
+		"meta": "{\"labels\":{\"kubernetes.io/metadata.name\":\"kube-public\"},\"name\":\"kube-public\",\"uid\":\"50b886b2-2831-4e88-a43e-c9ee4eb66194\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "6c88fd83-662c-4994-8a73-15f2d22e55d4",
+		"kind": "Namespace",
+		"meta": "{\"labels\":{\"kubernetes.io/metadata.name\":\"kube-node-lease\"},\"name\":\"kube-node-lease\",\"uid\":\"6c88fd83-662c-4994-8a73-15f2d22e55d4\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "00e704ac-77d1-4aac-80af-31233b277889",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-2hz8m\",\"namespace\":\"default\",\"uid\":\"00e704ac-77d1-4aac-80af-31233b277889\"}",
+		"status": "{\"podIP\":\"10.16.1.7\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "e570f25b-d90d-4f71-9730-d7aa61e0fbe0",
+		"kind": "DaemonSet",
+		"meta": "{\"labels\":{\"app\":\"flannel\",\"tier\":\"node\"},\"name\":\"kube-flannel-ds\",\"namespace\":\"kube-flannel\",\"uid\":\"e570f25b-d90d-4f71-9730-d7aa61e0fbe0\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "1d34c7bb-7d94-4f00-bed9-fe4eca61d446",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-h5jhg\",\"namespace\":\"default\",\"uid\":\"1d34c7bb-7d94-4f00-bed9-fe4eca61d446\"}",
+		"status": "{\"podIP\":\"10.16.1.5\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "f0fea0cd-24cd-439f-bd51-e7a9100fed40",
+		"kind": "Service",
+		"meta": "{\"name\":\"nginx-service\",\"namespace\":\"default\",\"uid\":\"f0fea0cd-24cd-439f-bd51-e7a9100fed40\",\"labels\":{\"app\":\"custom\",\"service\":\"service1\"}}"
+	},
+	{
+		"reason": "Update",
+		"uid": "1d34c7bb-7d94-4f00-bed9-fe4eca61d446",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-h5jhg\",\"namespace\":\"default\",\"uid\":\"1d34c7bb-7d94-4f00-bed9-fe4eca61d446\"}",
+		"status": "{\"podIP\":\"10.16.1.5\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Update",
+		"uid": "9475da1c-3aa7-477a-8a2e-ca9b470d72c0",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-q9cxf\",\"namespace\":\"default\",\"uid\":\"9475da1c-3aa7-477a-8a2e-ca9b470d72c0\"}",
+		"status": "{\"podIP\":\"10.16.1.6\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Update",
+		"uid": "00e704ac-77d1-4aac-80af-31233b277889",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-2hz8m\",\"namespace\":\"default\",\"uid\":\"00e704ac-77d1-4aac-80af-31233b277889\"}",
+		"status": "{\"podIP\":\"10.16.1.7\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "9e840fbe-93e4-412c-aa23-fbe6d03efd08",
+		"kind": "Service",
+		"meta": "{\"name\":\"nginx-service-second-service\",\"namespace\":\"default\",\"uid\":\"9e840fbe-93e4-412c-aa23-fbe6d03efd08\",\"labels\":{\"app\":\"custom-2\"}}"
+	},
+	{
+		"reason": "Create",
+		"uid": "0cc53e7d-1d9f-4798-926b-451364a4ec8e",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-deployment-58554dc5fb-\",\"labels\":{\"app\":\"nginx\",\"custom\":\"label\",\"pod-template-hash\":\"58554dc5fb\"},\"name\":\"nginx-deployment-58554dc5fb-2xst4\",\"namespace\":\"default\",\"uid\":\"0cc53e7d-1d9f-4798-926b-451364a4ec8e\"}",
+		"status": "{}",
+		"refs": {
+			"resources": {
+				"Deployment": {
+					"list": [
+						"9e0e1601-61b6-4d46-8916-db9f36414722"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicaSet": {
+					"list": [
+						"d3b2c8dc-f2ab-44d4-a9a7-4aa25ea4f0d6"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40",
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "45587e23-d375-48df-bc7a-9113acf39876",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-deployment-58554dc5fb-\",\"labels\":{\"app\":\"nginx\",\"custom\":\"label\",\"pod-template-hash\":\"58554dc5fb\"},\"name\":\"nginx-deployment-58554dc5fb-dbllz\",\"namespace\":\"default\",\"uid\":\"45587e23-d375-48df-bc7a-9113acf39876\"}",
+		"status": "{}",
+		"refs": {
+			"resources": {
+				"Deployment": {
+					"list": [
+						"9e0e1601-61b6-4d46-8916-db9f36414722"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicaSet": {
+					"list": [
+						"d3b2c8dc-f2ab-44d4-a9a7-4aa25ea4f0d6"
+					]
+				},
+				"Service": {
+					"list": [
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08",
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Update",
+		"uid": "00e704ac-77d1-4aac-80af-31233b277889",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-2hz8m\",\"namespace\":\"default\",\"uid\":\"00e704ac-77d1-4aac-80af-31233b277889\"}",
+		"status": "{\"podIP\":\"10.16.1.7\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40",
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Update",
+		"uid": "1d34c7bb-7d94-4f00-bed9-fe4eca61d446",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-h5jhg\",\"namespace\":\"default\",\"uid\":\"1d34c7bb-7d94-4f00-bed9-fe4eca61d446\"}",
+		"status": "{\"podIP\":\"10.16.1.5\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40",
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Update",
+		"uid": "9475da1c-3aa7-477a-8a2e-ca9b470d72c0",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-\",\"labels\":{\"app\":\"nginx\"},\"name\":\"nginx-q9cxf\",\"namespace\":\"default\",\"uid\":\"9475da1c-3aa7-477a-8a2e-ca9b470d72c0\"}",
+		"status": "{\"podIP\":\"10.16.1.6\"}",
+		"refs": {
+			"resources": {
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicationController": {
+					"list": [
+						"f2e2a261-ba86-4fa6-9493-e5260a106126"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40",
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "d3b2c8dc-f2ab-44d4-a9a7-4aa25ea4f0d6",
+		"kind": "ReplicaSet",
+		"meta": "{\"labels\":{\"app\":\"nginx\",\"custom\":\"label\",\"pod-template-hash\":\"58554dc5fb\"},\"name\":\"nginx-deployment-58554dc5fb\",\"namespace\":\"default\",\"uid\":\"d3b2c8dc-f2ab-44d4-a9a7-4aa25ea4f0d6\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "c60acb13-df0c-43bd-8ded-973f4ede66c6",
+		"kind": "Namespace",
+		"meta": "{\"labels\":{\"kubernetes.io/metadata.name\":\"nginx-service\"},\"name\":\"nginx-service\",\"uid\":\"c60acb13-df0c-43bd-8ded-973f4ede66c6\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "9e0e1601-61b6-4d46-8916-db9f36414722",
+		"kind": "Deployment",
+		"meta": "{\"labels\":{\"app\":\"nginx\",\"custom\":\"label\"},\"name\":\"nginx-deployment\",\"namespace\":\"default\",\"uid\":\"9e0e1601-61b6-4d46-8916-db9f36414722\"}"
+	},
+	{
+		"reason": "Update",
+		"uid": "45587e23-d375-48df-bc7a-9113acf39876",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-deployment-58554dc5fb-\",\"labels\":{\"app\":\"nginx\",\"custom\":\"label\",\"pod-template-hash\":\"58554dc5fb\"},\"name\":\"nginx-deployment-58554dc5fb-dbllz\",\"namespace\":\"default\",\"uid\":\"45587e23-d375-48df-bc7a-9113acf39876\"}",
+		"status": "{\"podIP\":\"10.16.1.18\"}",
+		"refs": {
+			"resources": {
+				"Deployment": {
+					"list": [
+						"9e0e1601-61b6-4d46-8916-db9f36414722"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicaSet": {
+					"list": [
+						"d3b2c8dc-f2ab-44d4-a9a7-4aa25ea4f0d6"
+					]
+				},
+				"Service": {
+					"list": [
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08",
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Update",
+		"uid": "0cc53e7d-1d9f-4798-926b-451364a4ec8e",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-deployment-58554dc5fb-\",\"labels\":{\"app\":\"nginx\",\"custom\":\"label\",\"pod-template-hash\":\"58554dc5fb\"},\"name\":\"nginx-deployment-58554dc5fb-2xst4\",\"namespace\":\"default\",\"uid\":\"0cc53e7d-1d9f-4798-926b-451364a4ec8e\"}",
+		"status": "{\"podIP\":\"10.16.1.19\"}",
+		"refs": {
+			"resources": {
+				"Deployment": {
+					"list": [
+						"9e0e1601-61b6-4d46-8916-db9f36414722"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				},
+				"ReplicaSet": {
+					"list": [
+						"d3b2c8dc-f2ab-44d4-a9a7-4aa25ea4f0d6"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40",
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "e581fe16-cde8-4075-a159-cd8ddd5b8fbc",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"fluentd-elasticsearch-\",\"labels\":{\"controller-revision-hash\":\"66b85864fb\",\"name\":\"fluentd-elasticsearch\",\"pod-template-generation\":\"1\"},\"name\":\"fluentd-elasticsearch-gk45m\",\"namespace\":\"kube-system\",\"uid\":\"e581fe16-cde8-4075-a159-cd8ddd5b8fbc\"}",
+		"status": "{}",
+		"refs": {
+			"resources": {
+				"DaemonSet": {
+					"list": [
+						"242144d1-40c2-4ae7-8344-10a0b9a45dea"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"c51d0620-b1e1-449a-a6f2-9f96830831a9"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "242144d1-40c2-4ae7-8344-10a0b9a45dea",
+		"kind": "DaemonSet",
+		"meta": "{\"labels\":{\"k8s-app\":\"fluentd-logging\"},\"name\":\"fluentd-elasticsearch\",\"namespace\":\"kube-system\",\"uid\":\"242144d1-40c2-4ae7-8344-10a0b9a45dea\"}"
+	},
+	{
+		"reason": "Update",
+		"uid": "e581fe16-cde8-4075-a159-cd8ddd5b8fbc",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"fluentd-elasticsearch-\",\"labels\":{\"controller-revision-hash\":\"66b85864fb\",\"name\":\"fluentd-elasticsearch\",\"pod-template-generation\":\"1\"},\"name\":\"fluentd-elasticsearch-gk45m\",\"namespace\":\"kube-system\",\"uid\":\"e581fe16-cde8-4075-a159-cd8ddd5b8fbc\"}",
+		"status": "{\"podIP\":\"10.16.1.20\"}",
+		"refs": {
+			"resources": {
+				"DaemonSet": {
+					"list": [
+						"242144d1-40c2-4ae7-8344-10a0b9a45dea"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"c51d0620-b1e1-449a-a6f2-9f96830831a9"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "0cc53e7d-1d9f-4798-926b-451364a4fgjs",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-deployment-58554dc5fb-\",\"labels\":{\"app\":\"nginx\",\"custom\":\"label\",\"pod-template-hash\":\"58554dc5fb\"},\"name\":\"nginx-deployment-58554dc5fb-2xst4\",\"namespace\":\"default\",\"uid\":\"0cc53e7d-1d9f-4798-926b-451364a4fgjs\"}",
+		"status": "{\"podIP\":\"10.16.1.20\"}",
+		"refs": {
+			"resources": {
+				"Deployment": {
+					"list": [
+						"920r1601-61b6-4d46-8916-db9f36414722"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"f7ju8b13-df0c-43bd-8ded-973f4ede66c6"
+					]
+				},
+				"ReplicaSet": {
+					"list": [
+						"d3b2c8dc-f2ab-44d4-a9a7-4aa25ea4f0d6"
+					]
+				},
+				"Service": {
+					"list": [
+						"f0fea0cd-24cd-439f-bd51-e7a9100fed40",
+						"9e840fbe-93e4-412c-aa23-fbe6d03efd08"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Create",
+		"uid": "f7ju8b13-df0c-43bd-8ded-973f4ede66c6",
+		"kind": "Namespace",
+		"meta": "{\"labels\":{\"kubernetes.io/metadata.name\":\"nginx-service\"},\"default\":\"default\",\"uid\":\"f7ju8b13-df0c-43bd-8ded-973f4ede66c6\"}"
+	},
+	{
+		"reason": "Create",
+		"uid": "920r1601-61b6-4d46-8916-db9f36414722",
+		"kind": "Deployment",
+		"meta": "{\"labels\":{\"app\":\"nginx\",\"custom\":\"label\"},\"name\":\"nginx-deployment\",\"namespace\":\"default\",\"uid\":\"920r1601-61b6-4d46-8916-db9f36414722\"}"
+	},
+	{
+		"reason": "Delete",
+		"uid": "f7ju8b13-df0c-43bd-8ded-973f4ede66c6",
+		"kind": "Namespace"
+	},
+	{
+		"reason": "Delete",
+		"uid": "920r1601-61b6-4d46-8916-db9f36414722",
+		"kind": "Deployment"
+	},
+	{
+		"reason": "Create",
+		"uid": "0cc0927d-1d9f-4798-926b-451364a4fgjs",
+		"kind": "Pod",
+		"meta": "{\"generateName\":\"nginx-deployment-58554dc5fb-\",\"labels\":{\"app\":\"nginx\",\"custom\":\"label\",\"pod-template-hash\":\"58554dc5fb\"},\"name\":\"nginx-deployment-58554dc5fb-2xst4\",\"namespace\":\"default\",\"uid\":\"0cc0927d-1d9f-4798-926b-451364a4fgjs\"}",
+		"status": "{\"podIP\":\"10.16.1.20\"}",
+		"refs": {
+			"resources": {
+				"Deployment": {
+					"list": [
+						"e56cf37d-5b8b-4b2d-b7bc-3316a3d72e93"
+					]
+				},
+				"Namespace": {
+					"list": [
+						"7617a251-8b06-4ae1-892c-92fc20930826"
+					]
+				}
+			}
+		}
+	},
+	{
+		"reason": "Delete",
+		"kind": "Pod",
+		"uid": "0cc0927d-1d9f-4798-926b-451364a4fgjs"
+	}
+]
