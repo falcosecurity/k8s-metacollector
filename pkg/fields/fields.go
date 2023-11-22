@@ -16,80 +16,8 @@
 package fields
 
 import (
-	"reflect"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
-
-// Metadata fields to collect from resources.
-type Metadata struct {
-	uid       types.UID
-	kind      string
-	name      string
-	namespace string
-	labels    map[string]string
-}
-
-// Set populates the metadata fields.
-func (m *Metadata) Set(meta *metav1.ObjectMeta, kind string) {
-	m.uid = meta.UID
-	m.name = meta.Name
-	m.namespace = meta.Namespace
-	m.labels = meta.Labels
-	m.kind = kind
-}
-
-// UID returns the UID.
-func (m *Metadata) UID() types.UID {
-	return m.uid
-}
-
-// Name returns the name.
-func (m *Metadata) Name() string {
-	return m.name
-}
-
-// Namespace returns the namespace.
-func (m *Metadata) Namespace() string {
-	return m.namespace
-}
-
-// Labels returns the labels.
-func (m *Metadata) Labels() map[string]string {
-	return m.labels
-}
-
-// Kind returns the kind of the resource.
-func (m *Metadata) Kind() string {
-	return m.kind
-}
-
-// UpdateLabels updates the labels.
-func (m *Metadata) UpdateLabels(l map[string]string) bool {
-	if !reflect.DeepEqual(m.labels, l) {
-		m.labels = l
-		return true
-	}
-	return false
-}
-
-// DeepCopy returns a copy of the Metadata.
-func (m *Metadata) DeepCopy() *Metadata {
-	// Copy the labels.
-	labels := make(map[string]string, len(m.labels))
-	for key, value := range m.labels {
-		labels[key] = value
-	}
-
-	return &Metadata{
-		uid:       m.uid,
-		name:      m.name,
-		namespace: m.namespace,
-		labels:    labels,
-		kind:      m.kind,
-	}
-}
 
 // Reference used to reference objects to which a resource is related.
 type Reference struct {
