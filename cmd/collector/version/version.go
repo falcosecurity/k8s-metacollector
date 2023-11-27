@@ -13,21 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package version
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/falcosecurity/k8s-metacollector/cmd/collector"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/falcosecurity/k8s-metacollector/pkg/version"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	// new cmd.
-	cmd := collector.New(ctrl.SetupSignalHandler(), nil)
-	if err := cmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+// New returns the version command.
+func New() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print version",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(version.Version())
+		},
 	}
+
+	return cmd
 }
