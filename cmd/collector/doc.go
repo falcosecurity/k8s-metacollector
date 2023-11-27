@@ -13,21 +13,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
-
-import (
-	"fmt"
-	"os"
-
-	"github.com/falcosecurity/k8s-metacollector/cmd/collector"
-	ctrl "sigs.k8s.io/controller-runtime"
-)
-
-func main() {
-	// new cmd.
-	cmd := collector.New(ctrl.SetupSignalHandler(), nil)
-	if err := cmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
+// Package collector implements the command line for the metacollector.
+package collector

@@ -13,21 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package collector
 
 import (
-	"fmt"
-	"os"
+	"context"
 
-	"github.com/falcosecurity/k8s-metacollector/cmd/collector"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/falcosecurity/k8s-metacollector/cmd/collector/run"
+	"github.com/falcosecurity/k8s-metacollector/cmd/collector/version"
+	"github.com/go-logr/logr"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	// new cmd.
-	cmd := collector.New(ctrl.SetupSignalHandler(), nil)
-	if err := cmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+// New returns the root command.
+func New(ctx context.Context, logger *logr.Logger) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:              "k8s-metacollector",
+		Short:            "Fetches the metadata from kubernetes API server and dispatches them to Falco instances",
+		SilenceErrors:    true,
+		SilenceUsage:     true,
+		TraverseChildren: true,
 	}
+
+	cmd.AddCommand(run.New(ctx, logger))
+	cmd.AddCommand(version.New())
+	return cmd
 }
