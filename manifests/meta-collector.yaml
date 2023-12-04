@@ -37,11 +37,8 @@ spec:
       containers:
         - command:
             - /meta-collector
-          env:
-            - name: NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
+          args:
+            - run
           ports:
             - containerPort: 8080
               name: "metrics"
