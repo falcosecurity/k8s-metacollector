@@ -119,7 +119,7 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	if k8sApiErrors.IsNotFound(err) {
 		// When the k8s resource gets deleted we need to remove it from the local cache.
 		if r.cache.Has(req.String()) {
-			logger.Info("marking resource for deletion")
+			logger.V(3).Info("marking resource for deletion")
 			deleted = true
 		} else {
 			return ctrl.Result{}, nil
