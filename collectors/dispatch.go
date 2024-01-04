@@ -156,7 +156,7 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 		}
 	}
 
-	logger.Info("starting event dispatcher for new getSubscribers", "resourceKind", resourceKind)
+	logger.Info("starting event dispatcher for new subscribers", "resourceKind", resourceKind)
 	// Start the dispatcher.
 	go dispatchEventsOnSubscribe(ctx)
 
