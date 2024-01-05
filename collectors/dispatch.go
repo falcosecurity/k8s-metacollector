@@ -149,7 +149,16 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 				logger.V(2).Info("events correctly dispatched", "subscriber", sub, "resourceKind", resourceKind)
 
 			case <-ctx.Done():
-				logger.V(2).Info("stopping dispatcher on new getSubscribers", "resourceKind", resourceKind)
+				logger.V(2).Info("stopping dispatcher on new subscribers", "resourceKind", resourceKind)
+				// Before exiting we need to wait for all the clients to close their connections.
+				for subscribers.Len() > 0 {
+					sub := <-subChan
+					if sub.Reason == subscriber.Unsubscribed {
+						// Delete the subscriber for the given node.
+						subscribers.DeleteSubscriberPerNode(sub.NodeName, sub.UID)
+						logger.V(2).Info("connection closed", "subscriberName", sub.NodeName, "subscriberUID", sub.UID)
+					}
+				}
 				wg.Done()
 				return
 			}
