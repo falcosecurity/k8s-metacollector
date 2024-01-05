@@ -88,3 +88,8 @@ func (gc *Subscribers) HasNode(node string) bool {
 	_, ok := gc.items[node]
 	return ok
 }
+
+// Len returns the number of subscribers.
+func (gc *Subscribers) Len() int {
+	return len(gc.items)
+}

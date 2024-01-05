@@ -105,8 +105,6 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 		s.logger.Error(err, "closing connection", "subscriber", selector.NodeName)
 	}
 
-	s.logger.Info("stream deleted", "subscriber", selector.NodeName)
-
 	// Unsubscribe from all the collectors.
 	s.subscribers.Delete(UID)
 	msg.Reason = subscriber.Unsubscribed
@@ -115,6 +113,7 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 			collector <- msg
 		}
 	}
+	s.logger.Info("stream deleted", "subscriber", selector.NodeName)
 	subscribers.Dec()
 	return err
 }
