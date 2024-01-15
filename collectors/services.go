@@ -123,7 +123,10 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 
 		// If no subscribers/nodes for the current resource just return.
-		if len(subs) == 0 && !r.cache.Has(req.String()) {
+		if len(subs) == 0 {
+			// Make sure to remove the cache entry for the resource.
+			// This could happen when a subscriber closes its connection.
+			r.cache.Delete(req.String())
 			return ctrl.Result{}, nil
 		}
 		// Create the resource.
