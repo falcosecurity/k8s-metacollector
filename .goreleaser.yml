@@ -1,0 +1,33 @@
+project_name: k8s-metacollector
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: "k8s-metacollector"
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+    ldflags: |
+      -X github.com/falcosecurity/k8s-metacollector/pkg/version.buildDate={{ .Date }}
+      -X github.com/falcosecurity/k8s-metacollector/pkg/version.gitCommit={{ .Commit }}
+      -X github.com/falcosecurity/k8s-metacollector/pkg/version.semVersion={{ if .IsSnapshot }}{{ .Commit }}{{ else }}{{ .Version }}{{ end }}
+      -s
+      -w
+    main: .
+    env:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+
+snapshot:
+  name_template: "{{ .ShortCommit }}"
+
+release:
+  prerelease: auto
+  mode: replace
+
+changelog:
+  use: github-native
