@@ -17,10 +17,10 @@ Kubernetes resources](https://falco.org/docs/reference/rules/supported-fields/#f
 well in small Kubernetes cluster but does not scale in large environments. The following issue describes the 
 problems that were affecting the old Kubernetes client: https://github.com/falcosecurity/libs/issues/987.
 
-The aim of `k8s-meta-collector` is to propose a novel approach to `k8s metadata enrichment` in Falco by moving 
+The aim of `k8s-metacollector` is to propose a novel approach to `k8s metadata enrichment` in Falco by moving 
 the fetching logic of the metadata to a centralized component. The Falco instances would connect to this component 
 and receive the metadata without the need to connect to the Kubernetes API server.
-The following image shows the  deployment of `k8s-meta-collector` and Falco in a kubernetes cluster.
+The following image shows the  deployment of `k8s-metacollector` and Falco in a kubernetes cluster.
 
 ![image](docs/images/meta-collector-in-cluster.svg "Deployment inside a Kubernetes cluster")
 
@@ -33,14 +33,14 @@ Falco instance running in a given node will receive metadata only for the resour
 * deployment, replicaset, replicationcontrollers associated with a pod running on the node;
 * services serving a pod running on the node.
 
-The filtering done by `k8s-meta-collector` reduces significantly the number of events sent to the Falco instances. 
+The filtering done by `k8s-metacollector` reduces significantly the number of events sent to the Falco instances. 
 The metadata received by the subscribers is ready to be used without the need for further processing on the 
 subscribers side.
 
 
 
 ### Functional Guarantees:
-The `k8s-meta-collector` assures that:
+The `k8s-metacollector` assures that:
 * subscribers (Falco instances) at subscribe time will receive all the metadata for the resources related to the 
   subscriber(node for which the subscriber wants to receive the metadata);
 * a message of type `Create` is sent to the subscribers when a new resource is discovered;
@@ -63,7 +63,7 @@ It's as easy as running:
 kubectl apply -f manifests/meta-collector.yaml
 ```
 
-If you want to scrape the metrics exposed by `k8s-meta-collector` using prometheus then deploy the provided
+If you want to scrape the metrics exposed by `k8s-metacollector` using prometheus then deploy the provided
 `ServiceMonitor`. Make sure to add the appropriate label to the manifest file in order to be discovered and scraped by
 your prometheus instance.
 ```shell
