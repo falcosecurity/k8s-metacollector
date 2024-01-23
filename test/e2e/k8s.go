@@ -291,6 +291,12 @@ func (dpl *Deployer) ListServices(t testing.TestingT, writer io.Writer, node str
 
 	for i := range services {
 		opt.Namespace = services[i].Namespace
+
+		// Some system services do not have labels, meaning that are not serving regular pods.
+		if len(services[i].Spec.Selector) == 0 {
+			continue
+		}
+
 		pods, err := k8s.ListPodsE(t, opt, v1.ListOptions{
 			LabelSelector: makeLabelSelector(services[i].Spec.Selector),
 			FieldSelector: NodeFieldSelector + node,
