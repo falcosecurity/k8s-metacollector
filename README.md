@@ -57,6 +57,7 @@ testing, or run against a remote cluster.
 
 ### Running on the cluster
 
+#### Manifests
 It's as easy as running:
 
 ```sh
@@ -69,6 +70,36 @@ your prometheus instance.
 ```shell
 kubectl apply -f manifests/monitor.yaml
 ```
+#### Helm Chart
+
+Before installing the [chart](https://github.com/falcosecurity/charts/tree/master/charts/k8s-metacollector), add the `falcosecurity` charts repository:
+
+```bash
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo update
+```
+
+To install the chart with default values and release name `k8s-metacollector` run:
+
+```bash
+helm install k8s-metacollector falcosecurity/k8s-metacollector \
+    --namespace metacollector \
+    --create-namespace
+```
+
+After a few seconds, k8s-metacollector should be running in the `metacollector` namespace.
+
+##### Enabling ServiceMonitor
+Assuming that Prometheus scrapes only the ServiceMonitors that present a `release label` the following command will install and label the ServiceMonitor:
+
+```bash
+helm install k8s-metacollector falcosecurity/k8s-metacollector \
+    --namespace metacollector \
+    --create-namespace \
+    --set serviceMonitor.create=true \
+    --set serviceMonitor.labels.release="kube-prometheus-stack"
+```
+
 There is also a default `grafana dashboard` ready to be used under `grafana` folder.
 
 ## License
