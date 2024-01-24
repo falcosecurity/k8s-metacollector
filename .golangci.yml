@@ -33,7 +33,7 @@ linters-settings:
     sections:
       - standard                          # Captures all standard packages if they do not match another section.
       - default                           # Contains all imports that could not be matched to another section type.
-      - prefix(github.com/alacuku/k8s-metadata)  # Groups all imports with the specified Prefix.
+      - prefix(github.com/falcosecurity/k8s-metadata)  # Groups all imports with the specified Prefix.
   goconst:
     min-len: 2
     min-occurrences: 2
@@ -48,7 +48,7 @@ linters-settings:
       # Conflicts with govet check-shadowing
       - sloppyReassign
   goimports:
-    local-prefixes: github.com/alacuku/k8s-metadata
+    local-prefixes: github.com/falcosecurity/k8s-metadata
   govet:
     check-shadowing: true
   misspell:

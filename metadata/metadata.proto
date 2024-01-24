@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/alacuku/k8s-metadata/metadata";
+option go_package = "github.com/falcosecurity/k8s-metadata/metadata";
 
 package metadata;
 
