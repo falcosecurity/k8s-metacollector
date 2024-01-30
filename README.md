@@ -4,7 +4,7 @@
 
 ⚠️ The repository is still a work in progress ⚠️
 
-The "K8s Meta Collector" is a self-contained module that can be deployed within a Kubernetes cluster to perform the task
+The `k8s-metacollector` is a self-contained module that can be deployed within a Kubernetes cluster to perform the task
 of gathering metadata from various Kubernetes resources and subsequently transmitting this collected metadata to
 designated subscribers.
 
