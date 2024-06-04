@@ -22,7 +22,7 @@ import (
 // ManagingOwner returns the controller owner of the resource if present.
 func ManagingOwner(owners []v1.OwnerReference) *v1.OwnerReference {
 	for _, o := range owners {
-		if *o.Controller {
+		if o.Controller != nil && *o.Controller {
 			return &o
 		}
 	}
