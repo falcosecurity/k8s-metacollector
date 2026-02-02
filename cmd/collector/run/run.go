@@ -306,17 +306,6 @@ func (opts *options) Run(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	if err = (&collectors.EndpointsDispatcher{
-		Client:                 mgr.GetClient(),
-		Name:                   "endpoint-dispatcher",
-		ServiceCollectorSource: svc,
-		PodCollectorSource:     pd,
-		Pods:                   make(map[string]map[string]struct{}),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create dispatcher for", "resource kind", resource.EndpointSlice)
-		os.Exit(1)
-	}
-
 	if err = (&collectors.EndpointslicesDispatcher{
 		Client:                 mgr.GetClient(),
 		Name:                   "endpointslices-dispatcher",
