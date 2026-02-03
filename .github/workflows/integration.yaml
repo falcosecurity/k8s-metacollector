@@ -42,14 +42,14 @@ jobs:
           tar -czvf k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz k8s-metacollector LICENSE
 
       - name: Upload k8s-metacollector artifacts
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}
           retention-days: 1
 
       - name: Upload k8s-metacollector archives
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
           path: ./k8s-metacollector-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
