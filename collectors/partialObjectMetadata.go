@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -51,7 +52,7 @@ type ObjectMetaCollector struct {
 	// externalSource watched for events that trigger the reconcile. In some cases changes in
 	// other resources triggers the current resource. For example, when a pod is created we need to trigger the namespace
 	// where the pod lives in order to send also the namespace to the node where the pod is running.
-	externalSource source.Source
+	externalSource chan event.GenericEvent
 	// name of the collector, used in the logger.
 	name string
 	// subscriberChan where the collector gets notified of new subscribers and dispatches the existing events through the queue.
@@ -61,9 +62,6 @@ type ObjectMetaCollector struct {
 	resource *metav1.PartialObjectMetadata
 	// podMatchingFields returns a list options used to list existing pods previously indexed on a field.
 	podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption
-	// dispatcherSource is used to get events enqueued by the dispatcher based
-	// on subscribers' arrival.
-	dispatcherSource source.Source
 	// dispatcherChan is the channel where the dispatcher pushes the new requests to be enqueued and
 	// processed by the reconciler.
 	dispatcherChan chan event.GenericEvent
@@ -93,7 +91,6 @@ func NewObjectMetaCollector(cl client.Client, queue broker.Queue, cache *events.
 		subscriberChan:    opts.subscriberChan,
 		resource:          res,
 		podMatchingFields: opts.podMatchingFields,
-		dispatcherSource:  &source.Channel{Source: dc},
 		dispatcherChan:    dc,
 		subscribers:       subscriber.NewSubscribers(),
 	}
@@ -309,13 +306,12 @@ func (r *ObjectMetaCollector) SetupWithManager(mgr ctrl.Manager) error {
 		For(r.resource,
 			builder.OnlyMetadata,
 			builder.WithPredicates(predicatesWithMetrics(r.name, apiServerSource, nil))).
-		WatchesRawSource(r.dispatcherSource, &handler.EnqueueRequestForObject{}, builder.WithPredicates(predicatesWithMetrics(r.name, "dispatcher", nil))).
+		WatchesRawSource(source.Channel(r.dispatcherChan, &handler.EnqueueRequestForObject{}, source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(r.name, "dispatcher", nil)))).
 		WithOptions(controller.Options{LogConstructor: lc})
 
 	if r.externalSource != nil {
-		bld.WatchesRawSource(r.externalSource,
-			&handler.EnqueueRequestForObject{},
-			builder.WithPredicates(predicatesWithMetrics(r.name, resource.Pod, nil)))
+		bld.WatchesRawSource(source.Channel(r.externalSource, &handler.EnqueueRequestForObject{},
+			source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(r.name, resource.Pod, nil))))
 	}
 
 	return bld.Complete(r)

@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -46,13 +47,10 @@ type ServiceCollector struct {
 	client.Client
 	queue           broker.Queue
 	cache           *events.Cache
-	endpointsSource source.Source
+	endpointsSource chan event.GenericEvent
 	name            string
 	subscriberChan  subscriber.SubsChan
 	logger          logr.Logger
-	// dispatcherSource is used to get events enqueued by the dispatcher based
-	// on subscribers' arrival.
-	dispatcherSource source.Source
 	// dispatcherChan is the channel where the dispatcher pushes the new requests to be enqueued and
 	// processed by the reconciler.
 	dispatcherChan chan event.GenericEvent
@@ -69,15 +67,14 @@ func NewServiceCollector(cl client.Client, queue broker.Queue, cache *events.Cac
 	dc := make(chan event.GenericEvent, 1)
 
 	return &ServiceCollector{
-		Client:           cl,
-		queue:            queue,
-		cache:            cache,
-		endpointsSource:  opts.externalSource,
-		name:             name,
-		subscriberChan:   opts.subscriberChan,
-		dispatcherSource: &source.Channel{Source: dc},
-		dispatcherChan:   dc,
-		subscribers:      subscriber.NewSubscribers(),
+		Client:          cl,
+		queue:           queue,
+		cache:           cache,
+		endpointsSource: opts.externalSource,
+		name:            name,
+		subscriberChan:  opts.subscriberChan,
+		dispatcherChan:  dc,
+		subscribers:     subscriber.NewSubscribers(),
 	}
 }
 
@@ -276,12 +273,10 @@ func (r *ServiceCollector) SetupWithManager(mgr ctrl.Manager) error {
 		For(&corev1.Service{},
 			builder.WithPredicates(predicatesWithMetrics(r.name, apiServerSource, nil))).
 		WithOptions(controller.Options{LogConstructor: lc}).
-		WatchesRawSource(r.endpointsSource,
-			&handler.EnqueueRequestForObject{},
-			builder.WithPredicates(predicatesWithMetrics(r.name, resource.Endpoints, nil))).
-		WatchesRawSource(r.dispatcherSource,
-			&handler.EnqueueRequestForObject{},
-			builder.WithPredicates(predicatesWithMetrics(r.name, "dispatcher", nil))).
+		WatchesRawSource(source.Channel(r.endpointsSource, &handler.EnqueueRequestForObject{},
+			source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(r.name, resource.Endpoints, nil)))).
+		WatchesRawSource(source.Channel(r.dispatcherChan, &handler.EnqueueRequestForObject{},
+			source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(r.name, "dispatcher", nil)))).
 		Owns(&discoveryv1.EndpointSlice{},
 			builder.WithPredicates(predicatesWithMetrics(r.name, resource.EndpointSlice, nil))).
 		Complete(r)
