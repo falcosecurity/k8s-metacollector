@@ -20,11 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 type collectorOptions struct {
-	externalSource    source.Source
+	externalSource    chan event.GenericEvent
 	subscriberChan    subscriber.SubsChan
 	podMatchingFields func(metadata *metav1.ObjectMeta) client.ListOption
 	ownerSources      map[string]chan<- event.GenericEvent
@@ -34,7 +33,7 @@ type collectorOptions struct {
 type CollectorOption func(opt *collectorOptions)
 
 // WithExternalSource configure external sources that could trigger the reconcile loop of the collector.
-func WithExternalSource(src source.Source) CollectorOption {
+func WithExternalSource(src chan event.GenericEvent) CollectorOption {
 	return func(opt *collectorOptions) {
 		opt.externalSource = src
 	}

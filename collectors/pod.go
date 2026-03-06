@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -51,14 +52,11 @@ type PodCollector struct {
 	cache *events.Cache
 	// Sources where to trigger events when an owner need to be notified about a change.
 	ownersSources   map[string]chan<- event.GenericEvent
-	endpointsSource source.Source
+	endpointsSource chan event.GenericEvent
 	name            string
 	// subscriberChan where new subscribers notify their presence.
 	subscriberChan subscriber.SubsChan
 	logger         logr.Logger
-	// dispatcherSource is used to get events enqueued by the dispatcher based
-	// on subscribers' arrival.
-	dispatcherSource source.Source
 	// dispatcherChan is the channel where the dispatcher pushes the new requests to be enqueued and
 	// processed by the reconciler.
 	dispatcherChan chan event.GenericEvent
@@ -76,16 +74,15 @@ func NewPodCollector(cl client.Client, queue broker.Queue, cache *events.Cache, 
 	dc := make(chan event.GenericEvent, 1)
 
 	return &PodCollector{
-		Client:           cl,
-		queue:            queue,
-		cache:            cache,
-		ownersSources:    opts.ownerSources,
-		endpointsSource:  opts.externalSource,
-		name:             name,
-		subscriberChan:   opts.subscriberChan,
-		dispatcherSource: &source.Channel{Source: dc},
-		dispatcherChan:   dc,
-		subscribers:      subscriber.NewSubscribers(),
+		Client:          cl,
+		queue:           queue,
+		cache:           cache,
+		ownersSources:   opts.ownerSources,
+		endpointsSource: opts.externalSource,
+		name:            name,
+		subscriberChan:  opts.subscriberChan,
+		dispatcherChan:  dc,
+		subscribers:     subscriber.NewSubscribers(),
 	}
 }
 
@@ -456,12 +453,10 @@ func (pc *PodCollector) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{},
 			builder.WithPredicates(predicatesWithMetrics(pc.name, apiServerSource, nodeNameFilter))).
-		WatchesRawSource(pc.endpointsSource,
-			&handler.EnqueueRequestForObject{},
-			builder.WithPredicates(predicatesWithMetrics(pc.name, resource.EndpointSlice, nil))).
-		WatchesRawSource(pc.dispatcherSource,
-			&handler.EnqueueRequestForObject{},
-			builder.WithPredicates(predicatesWithMetrics(pc.name, "dispatcher", nil))).
+		WatchesRawSource(source.Channel(pc.endpointsSource, &handler.EnqueueRequestForObject{},
+			source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(pc.name, resource.EndpointSlice, nil)))).
+		WatchesRawSource(source.Channel(pc.dispatcherChan, &handler.EnqueueRequestForObject{},
+			source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(pc.name, "dispatcher", nil)))).
 		WithOptions(controller.Options{LogConstructor: lc}).
 		Complete(pc)
 }

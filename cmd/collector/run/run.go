@@ -43,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 var (
@@ -174,23 +173,18 @@ func (opts *options) Run(ctx context.Context) {
 
 	// Create source for deployments.
 	dpl := make(chan event.GenericEvent, 1)
-	deploymentSource := &source.Channel{Source: dpl}
 
 	// Create source for replicasets.
 	rs := make(chan event.GenericEvent, 1)
-	replicasetSource := &source.Channel{Source: rs}
 
 	// Create source for namespaces.
 	ns := make(chan event.GenericEvent, 1)
-	namespaceSource := &source.Channel{Source: ns}
 
 	// Create source for daemonsets.
 	ds := make(chan event.GenericEvent, 1)
-	daemonsetSource := &source.Channel{Source: ds}
 
 	// Create source for replicationcontrollers.
 	rc := make(chan event.GenericEvent, 1)
-	rcSource := &source.Channel{Source: rc}
 
 	externalSrc := make(map[string]chan<- event.GenericEvent)
 	externalSrc[resource.Deployment] = dpl
@@ -200,11 +194,9 @@ func (opts *options) Run(ctx context.Context) {
 
 	// Create source for pods.
 	pd := make(chan event.GenericEvent, 1)
-	podSource := &source.Channel{Source: pd}
 
 	// Create source for services.
 	svc := make(chan event.GenericEvent, 1)
-	serviceSource := &source.Channel{Source: svc}
 
 	podChanTrig := make(subscriber.SubsChan)
 
@@ -213,7 +205,7 @@ func (opts *options) Run(ctx context.Context) {
 	podCollector := collectors.NewPodCollector(mgr.GetClient(), queue, events.NewCache(), "pod-collector",
 		collectors.WithOwnerSources(externalSrc),
 		collectors.WithSubscribersChan(podChanTrig),
-		collectors.WithExternalSource(podSource))
+		collectors.WithExternalSource(pd))
 
 	if err = podCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Pod)
@@ -224,7 +216,7 @@ func (opts *options) Run(ctx context.Context) {
 	dplCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Deployment, nil), "deployment-collector",
 		collectors.WithSubscribersChan(dplChanTrig),
-		collectors.WithExternalSource(deploymentSource),
+		collectors.WithExternalSource(dpl),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
 				"metadata.generateName": meta.Name,
@@ -240,7 +232,7 @@ func (opts *options) Run(ctx context.Context) {
 	rsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.ReplicaSet, nil), "replicaset-collector",
 		collectors.WithSubscribersChan(rsChanTrig),
-		collectors.WithExternalSource(replicasetSource),
+		collectors.WithExternalSource(rs),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
 				"metadata.generateName": meta.Name + "-",
@@ -256,7 +248,7 @@ func (opts *options) Run(ctx context.Context) {
 	nsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Namespace, nil), "namespace-collector",
 		collectors.WithSubscribersChan(nsChanTrig),
-		collectors.WithExternalSource(namespaceSource))
+		collectors.WithExternalSource(ns))
 
 	if err = nsCollector.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create collector for", "resource kind", resource.Namespace)
@@ -267,7 +259,7 @@ func (opts *options) Run(ctx context.Context) {
 	dsCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.Daemonset, nil), "daemonset-collector",
 		collectors.WithSubscribersChan(dsChanTrig),
-		collectors.WithExternalSource(daemonsetSource),
+		collectors.WithExternalSource(ds),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
 				"metadata.generateName": meta.Name + "-",
@@ -283,7 +275,7 @@ func (opts *options) Run(ctx context.Context) {
 	rcCollector := collectors.NewObjectMetaCollector(mgr.GetClient(), queue, events.NewCache(),
 		collectors.NewPartialObjectMetadata(resource.ReplicationController, nil), "replicationcontroller-collector",
 		collectors.WithSubscribersChan(rcChanTrig),
-		collectors.WithExternalSource(rcSource),
+		collectors.WithExternalSource(rc),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
 				"metadata.generateName": meta.Name + "-",
@@ -298,7 +290,7 @@ func (opts *options) Run(ctx context.Context) {
 	svcChanTrig := make(subscriber.SubsChan)
 
 	svcCollector := collectors.NewServiceCollector(mgr.GetClient(), queue, events.NewCache(), "service-collector",
-		collectors.WithExternalSource(serviceSource),
+		collectors.WithExternalSource(svc),
 		collectors.WithSubscribersChan(svcChanTrig))
 
 	if err = svcCollector.SetupWithManager(mgr); err != nil {
