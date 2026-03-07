@@ -1,10 +1,10 @@
 module github.com/falcosecurity/k8s-metacollector
 
-go 1.25.0
+go 1.26
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/gruntwork-io/terratest v0.55.0
+	github.com/gruntwork-io/terratest v0.56.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.28.0
 	github.com/onsi/gomega v1.39.1
