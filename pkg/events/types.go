@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 
 // Resource event that holds metadata fields for k8s resources.
 //
-//nolint:govet //needed for hashing.
+
 type Resource struct {
 	Kind   string
 	UID    string

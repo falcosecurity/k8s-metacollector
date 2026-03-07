@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
-	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -101,14 +101,14 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	logReq := log.FromContext(ctx)
 
 	err = pc.Get(ctx, req.NamespacedName, &pod)
-	if err != nil && !k8sApiErrors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		logReq.Error(err, "unable to get resource")
 		return ctrl.Result{}, err
 	}
 
 	logReq = logReq.WithValues("node", pod.Spec.NodeName)
 
-	if k8sApiErrors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		// When the k8s resource get deleted we need to remove it from the local cache.
 		if _, ok = pc.cache.Get(req.String()); ok {
 			logReq.V(3).Info("marking resource for deletion")
@@ -137,7 +137,7 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		// Create a new events.Resource and fill its fields.
 		pRes = events.NewResource(resource.Pod, string(pod.UID))
 		// Add namespace reference.
-		if err = pc.namespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+		if err := pc.namespaceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
 		// Get the owner references for the current resource. Note that we get the owner references
@@ -146,11 +146,11 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return ctrl.Result{}, err
 		}
 		// Get references for all the services that are serving traffic to the current pod.
-		if err = pc.serviceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
+		if err := pc.serviceRefsHandler(ctx, logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
 		// Fill resource fields.
-		if err = pc.objFieldsHandler(logReq, pRes, &pod); err != nil {
+		if err := pc.objFieldsHandler(logReq, pRes, &pod); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -256,7 +256,7 @@ func (pc *PodCollector) ownerRefsHandler(ctx context.Context, logger logr.Logger
 				Namespace: pod.Namespace,
 				Name:      owner.Name,
 			}, replicaset)
-			if err != nil && !k8sApiErrors.IsNotFound(err) {
+			if err != nil && !k8serrors.IsNotFound(err) {
 				logger.Error(err, "unable to get resource related to", "ReplicaSet", klog.KRef(pod.Namespace, owner.Name))
 				return err
 			}
@@ -328,7 +328,7 @@ func (pc *PodCollector) objFieldsHandler(logger logr.Logger, res *events.Resourc
 	// Remove unused meta fields.
 	metaUnused := []string{"creationTimestamp", "ownerReferences"}
 	meta := podUn["metadata"]
-	metaMap := meta.(map[string]interface{})
+	metaMap := meta.(map[string]any)
 	for _, key := range metaUnused {
 		delete(metaMap, key)
 	}

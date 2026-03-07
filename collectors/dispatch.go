@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
+//nolint:gocyclo // complexity is inherent to the dispatch switch
 func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subChan subscriber.SubsChan,
 	dispatcherChan chan<- event.GenericEvent, cl client.Client, subscribers *subscriber.Subscribers) error {
 	wg := sync.WaitGroup{}

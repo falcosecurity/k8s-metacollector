@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,7 +55,6 @@ var _ = Describe("Clients on subscribe", func() {
 			Expect(err).NotTo(HaveOccurred())
 			// Check that for each retrieved pod we received a create event from the collector.
 			for _, pod := range pods {
-				pod := pod
 				Eventually(func(g Gomega) bool {
 					evt, ok := client.Get(string(pod.UID))
 					if !ok {
@@ -86,7 +85,6 @@ var _ = Describe("Clients on subscribe", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			for _, dpl := range deployments {
-				dpl := dpl
 				Eventually(func(g Gomega) bool {
 					evt, ok := client.Get(string(dpl.UID))
 					if !ok {
@@ -112,7 +110,6 @@ var _ = Describe("Clients on subscribe", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			for _, rs := range replicasets {
-				rs := rs
 				Eventually(func(g Gomega) bool {
 					evt, ok := client.Get(string(rs.UID))
 					if !ok {
@@ -138,7 +135,6 @@ var _ = Describe("Clients on subscribe", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			for _, rc := range rcs {
-				rc := rc
 				Eventually(func(g Gomega) bool {
 					evt, ok := client.Get(string(rc.UID))
 					if !ok {
@@ -164,7 +160,6 @@ var _ = Describe("Clients on subscribe", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			for _, ds := range daemonsets {
-				ds := ds
 				Eventually(func(g Gomega) bool {
 					evt, ok := client.Get(string(ds.UID))
 					if !ok {
@@ -190,7 +185,6 @@ var _ = Describe("Clients on subscribe", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			for _, svc := range services {
-				svc := svc
 				Eventually(func(g Gomega) bool {
 					evt, ok := client.Get(string(svc.UID))
 					if !ok {
@@ -216,7 +210,6 @@ var _ = Describe("Clients on subscribe", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			for _, ns := range namespaces {
-				ns := ns
 				Eventually(func(g Gomega) bool {
 					evt, ok := client.Get(string(ns.UID))
 					if !ok {

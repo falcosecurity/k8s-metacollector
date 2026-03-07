@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import (
 
 	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 	discoveryv1 "k8s.io/api/discovery/v1"
-	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -53,12 +53,12 @@ func (r *EndpointslicesDispatcher) Reconcile(ctx context.Context, req ctrl.Reque
 	logger := log.FromContext(ctx)
 
 	err = r.Get(ctx, req.NamespacedName, eps)
-	if err != nil && !k8sApiErrors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		logger.Error(err, "unable to get resource")
 		return ctrl.Result{}, err
 	}
 
-	if k8sApiErrors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		// Notify the pods that have been removed from the endpoint slice.
 		pods, ok := r.Pods[req.String()]
 		if ok {

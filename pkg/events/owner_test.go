@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,34 +19,33 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
 func TestManagingOwner(t *testing.T) {
-
 	tests := []struct {
 		name       string
-		references []v1.OwnerReference
+		references []metav1.OwnerReference
 		expected   bool
 	}{
 		{
 			name: "Controller is set to true",
-			references: []v1.OwnerReference{{
+			references: []metav1.OwnerReference{{
 				Controller: ptr.To(true),
 			}},
 			expected: true,
 		},
 		{
 			name: "Controller is set to false",
-			references: []v1.OwnerReference{{
+			references: []metav1.OwnerReference{{
 				Controller: ptr.To(false),
 			}},
 			expected: false,
 		},
 		{
 			name: "Controller is set to nil",
-			references: []v1.OwnerReference{{
+			references: []metav1.OwnerReference{{
 				Controller: nil,
 			}},
 			expected: false,
@@ -54,8 +53,6 @@ func TestManagingOwner(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
-
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 

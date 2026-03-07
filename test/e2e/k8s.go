@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ import (
 	"github.com/gruntwork-io/terratest/modules/testing"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -66,7 +66,7 @@ func (dpl *Deployer) DeployAll(t testing.TestingT, writer io.Writer, namespace s
 		return err
 	}
 
-	return k8s.WaitUntilNumPodsCreatedE(t, kubectlOptions, v1.ListOptions{}, expectedPods, 10, time.Second*5)
+	return k8s.WaitUntilNumPodsCreatedE(t, kubectlOptions, metav1.ListOptions{}, expectedPods, 10, time.Second*5)
 }
 
 // CleanUp removes all resources previously deployed.
@@ -80,7 +80,7 @@ func (dpl *Deployer) CleanUp(t testing.TestingT, writer io.Writer) error {
 	for ns := range dpl.namespaces {
 		var err error
 
-		for !k8sApiErrors.IsNotFound(err) {
+		for !k8serrors.IsNotFound(err) {
 			time.Sleep(5 * time.Second)
 			_, err = k8s.GetNamespaceE(t, &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}, ns)
 		}
@@ -95,7 +95,7 @@ func (dpl *Deployer) CleanUp(t testing.TestingT, writer io.Writer) error {
 func (dpl *Deployer) ListPods(t testing.TestingT, writer io.Writer, node string) ([]corev1.Pod, error) {
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
-	pods, err := k8s.ListPodsE(t, opt, v1.ListOptions{
+	pods, err := k8s.ListPodsE(t, opt, metav1.ListOptions{
 		FieldSelector: NodeFieldSelector + node,
 	})
 
@@ -222,7 +222,7 @@ func (dpl *Deployer) ListReplicationControllers(t testing.TestingT, writer io.Wr
 			if err != nil {
 				return nil, err
 			}
-			rc, err := clientset.CoreV1().ReplicationControllers(opt.Namespace).Get(context.Background(), owner.Name, v1.GetOptions{})
+			rc, err := clientset.CoreV1().ReplicationControllers(opt.Namespace).Get(context.Background(), owner.Name, metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -280,7 +280,7 @@ func (dpl *Deployer) ListServices(t testing.TestingT, writer io.Writer, node str
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
 	// List all existing pods services.
-	services, err := k8s.ListServicesE(t, opt, v1.ListOptions{})
+	services, err := k8s.ListServicesE(t, opt, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +297,7 @@ func (dpl *Deployer) ListServices(t testing.TestingT, writer io.Writer, node str
 			continue
 		}
 
-		pods, err := k8s.ListPodsE(t, opt, v1.ListOptions{
+		pods, err := k8s.ListPodsE(t, opt, metav1.ListOptions{
 			LabelSelector: makeLabelSelector(services[i].Spec.Selector),
 			FieldSelector: NodeFieldSelector + node,
 		})
@@ -327,7 +327,7 @@ func makeLabelSelector(labels map[string]string) string {
 }
 
 // MetaToString returns the metadata to string. But before removes all the unnecessary fields.
-func MetaToString(meta *v1.ObjectMeta) (string, error) {
+func MetaToString(meta *metav1.ObjectMeta) (string, error) {
 	// First thing remove all metadata fields that are not of interest.
 	// Current fields that are not filtered out:
 	// Name, GenerateName, Namespace, UID, CreationTimestamp, Labels, OwnerReferences.
@@ -338,7 +338,7 @@ func MetaToString(meta *v1.ObjectMeta) (string, error) {
 	meta.ResourceVersion = ""
 	meta.DeletionTimestamp = nil
 	meta.Generation = 0
-	meta.CreationTimestamp = v1.Time{}
+	meta.CreationTimestamp = metav1.Time{}
 	meta.OwnerReferences = nil
 	meta.DeletionGracePeriodSeconds = nil
 
