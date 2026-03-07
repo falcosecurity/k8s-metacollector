@@ -93,7 +93,7 @@ jobs:
           go-version-file: 'go.mod'
           check-latest: true
       - name: Setup ginkgo
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0 #Make sure that it is at the same version as the library used in the project.
+        run: go install github.com/onsi/ginkgo/v2/ginkgo
 
       - name: Create KIND Cluster
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
