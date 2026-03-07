@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ func New(logger logr.Logger, queue Queue, collectors map[string]subscriber.SubsC
 func (br *Broker) Start(ctx context.Context) error {
 	br.logger.Info("starting grpc server", "addr", br.opt.address)
 	// Start the grpc server.
-	lis, err := net.Listen("tcp", br.opt.address)
+	lis, err := (&net.ListenConfig{}).Listen(ctx, "tcp", br.opt.address)
 	if err != nil {
 		return fmt.Errorf("an error occurred whil creating listener for grpc server: %w", err)
 	}

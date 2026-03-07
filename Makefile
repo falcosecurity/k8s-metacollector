@@ -131,7 +131,7 @@ fmt: gci addlicense
 # Install golangci-lint if not available
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.1
 GOLANGCILINT=$(GOBIN)/golangci-lint
 else
 GOLANGCILINT=$(shell which golangci-lint)
@@ -140,6 +140,7 @@ endif
 # It works when called in a branch different than main.
 # "--new-from-rev REV Show only new issues created after git revision REV"
 lint: golangci-lint
+	$(GOLANGCILINT) config verify
 	$(GOLANGCILINT) run --new-from-rev main
 
 # Generate gRPC files

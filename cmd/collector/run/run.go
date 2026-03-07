@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,7 +105,7 @@ func New(ctx context.Context, logger *logr.Logger) *cobra.Command {
 	// Add the go flags to the cobra flagset. It registers the flags for the kubeconfig path
 	// and the logger.
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
-	opts.flags.add(cmd.Flags())
+	opts.add(cmd.Flags())
 
 	return cmd
 }
@@ -142,13 +142,13 @@ func (opts *options) Run(ctx context.Context) {
 				&corev1.ReplicationController{}: {
 					Transform: collectors.PartialObjectTransformer(setupLog),
 				},
-				&v1.Deployment{}: {
+				&appsv1.Deployment{}: {
 					Transform: collectors.PartialObjectTransformer(setupLog),
 				},
-				&v1.ReplicaSet{}: {
+				&appsv1.ReplicaSet{}: {
 					Transform: collectors.PartialObjectTransformer(setupLog),
 				},
-				&v1.DaemonSet{}: {
+				&appsv1.DaemonSet{}: {
 					Transform: collectors.PartialObjectTransformer(setupLog),
 				},
 				&discoveryv1.EndpointSlice{}: {

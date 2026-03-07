@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
-	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -91,12 +91,12 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	logger := log.FromContext(ctx)
 
 	err = r.Get(ctx, req.NamespacedName, svc)
-	if err != nil && !k8sApiErrors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		logger.Error(err, "unable to get resource")
 		return ctrl.Result{}, err
 	}
 
-	if k8sApiErrors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		// When the k8s resource get deleted we need to remove it from the local cache.
 		if _, ok = r.cache.Get(req.String()); ok {
 			logger.Info("marking resource for deletion")
@@ -213,7 +213,7 @@ func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Reso
 	metaUnused := []string{"creationTimestamp", "ownerReferences"}
 
 	meta := svcUn["metadata"]
-	metaMap := meta.(map[string]interface{})
+	metaMap := meta.(map[string]any)
 	for _, key := range metaUnused {
 		delete(metaMap, key)
 	}

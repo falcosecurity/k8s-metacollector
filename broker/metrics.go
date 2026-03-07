@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ type metrics struct {
 	updateCounter   prometheus.Counter
 	deleteCounter   prometheus.Counter
 	latencyObserver prometheus.Observer
-	sentTimes       map[interface{}]time.Time
+	sentTimes       map[any]time.Time
 }
 
 // newMetrics returns a new ChannelMetrics ready to be used.
@@ -98,7 +98,7 @@ func newMetrics(name string) *metrics {
 		updateCounter:   updateCounter,
 		deleteCounter:   deleteCounter,
 		latencyObserver: latencyObserver,
-		sentTimes:       make(map[interface{}]time.Time),
+		sentTimes:       make(map[any]time.Time),
 	}
 }
 
@@ -125,7 +125,7 @@ func (m *metrics) send(evt events.Interface) {
 }
 
 // receive to be called after the item has been pooped from the queue.
-func (m *metrics) receive(evt interface{}) {
+func (m *metrics) receive(evt any) {
 	if m == nil {
 		return
 	}

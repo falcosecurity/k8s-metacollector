@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ type Client struct {
 func NewClient(nodeName, port string) (Client, error) {
 	serverAddr := fmt.Sprintf("localhost:%s", port)
 	grpcOpts := grpc.WithTransportCredentials(insecure.NewCredentials())
-	conn, err := grpc.Dial(serverAddr, grpcOpts)
+	conn, err := grpc.NewClient(serverAddr, grpcOpts)
 	if err != nil {
 		return Client{}, fmt.Errorf("unable to create grpc connections: %w", err)
 	}

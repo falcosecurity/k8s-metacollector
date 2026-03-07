@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import (
 // PodTransformer transforms the pod objects received from the api-server
 // before adding them to the cache.
 var PodTransformer = func(logger logr.Logger) toolscache.TransformFunc {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		pod, ok := i.(*corev1.Pod)
 		if !ok {
 			err := fmt.Errorf("unable to convert object to %T", corev1.Pod{})
@@ -49,7 +49,7 @@ var PodTransformer = func(logger logr.Logger) toolscache.TransformFunc {
 // PartialObjectTransformer PodTransformer transforms the metadata objects received from the api-server
 // before adding them to the cache.
 var PartialObjectTransformer = func(logger logr.Logger) toolscache.TransformFunc {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		meta, ok := i.(*metav1.PartialObjectMetadata)
 		if !ok {
 			err := fmt.Errorf("unable to convert object to %T", metav1.PartialObjectMetadata{})
@@ -65,7 +65,7 @@ var PartialObjectTransformer = func(logger logr.Logger) toolscache.TransformFunc
 // ServiceTransformer transforms the service objects received from the api-server
 // before adding them to the cache.
 var ServiceTransformer = func(logger logr.Logger) toolscache.TransformFunc {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		svc, ok := i.(*corev1.Service)
 		if !ok {
 			err := fmt.Errorf("unable to convert object to %T", corev1.Service{})
@@ -84,7 +84,7 @@ var ServiceTransformer = func(logger logr.Logger) toolscache.TransformFunc {
 // EndpointsliceTransformer transforms the endpointslice objects received from the api-server
 // before adding them to the cache.
 var EndpointsliceTransformer = func(logger logr.Logger) toolscache.TransformFunc {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		ep, ok := i.(*discoveryv1.EndpointSlice)
 		if !ok {
 			err := fmt.Errorf("unable to convert object to %T", discoveryv1.EndpointSlice{})

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 package events
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ManagingOwner returns the controller owner of the resource if present.
-func ManagingOwner(owners []v1.OwnerReference) *v1.OwnerReference {
+func ManagingOwner(owners []metav1.OwnerReference) *metav1.OwnerReference {
 	for _, o := range owners {
 		if o.Controller != nil && *o.Controller {
 			return &o

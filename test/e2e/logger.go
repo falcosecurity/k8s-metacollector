@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,6 @@ type Logger struct {
 }
 
 // Logf prints the logging message.
-func (l Logger) Logf(t testing.TestingT, format string, args ...interface{}) {
+func (l Logger) Logf(t testing.TestingT, format string, args ...any) {
 	terratestlogger.DoLog(t, 3, l.writer, fmt.Sprintf(format, args...))
 }

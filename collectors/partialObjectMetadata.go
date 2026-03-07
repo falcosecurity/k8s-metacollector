@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -108,12 +108,12 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	logger := log.FromContext(ctx)
 
 	err = r.Get(ctx, req.NamespacedName, r.resource)
-	if err != nil && !k8sApiErrors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		logger.Error(err, "unable to get resource")
 		return ctrl.Result{}, err
 	}
 
-	if k8sApiErrors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		// When the k8s resource gets deleted we need to remove it from the local cache.
 		if r.cache.Has(req.String()) {
 			logger.V(3).Info("marking resource for deletion")
@@ -238,7 +238,7 @@ func (r *ObjectMetaCollector) objFieldsHandler(logger logr.Logger, res *events.R
 	// Remove unused meta fields
 	metaUnused := []string{"creationTimestamp", "ownerReferences"}
 	meta := objUn["metadata"]
-	metaMap := meta.(map[string]interface{})
+	metaMap := meta.(map[string]any)
 	for _, key := range metaUnused {
 		delete(metaMap, key)
 	}
@@ -306,7 +306,8 @@ func (r *ObjectMetaCollector) SetupWithManager(mgr ctrl.Manager) error {
 		For(r.resource,
 			builder.OnlyMetadata,
 			builder.WithPredicates(predicatesWithMetrics(r.name, apiServerSource, nil))).
-		WatchesRawSource(source.Channel(r.dispatcherChan, &handler.EnqueueRequestForObject{}, source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(r.name, "dispatcher", nil)))).
+		WatchesRawSource(source.Channel(r.dispatcherChan, &handler.EnqueueRequestForObject{},
+			source.WithPredicates[client.Object, reconcile.Request](predicatesWithMetrics(r.name, "dispatcher", nil)))).
 		WithOptions(controller.Options{LogConstructor: lc})
 
 	if r.externalSource != nil {
