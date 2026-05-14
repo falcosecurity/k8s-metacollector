@@ -1,6 +1,9 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+HELM ?= helm
+HELM_DOCS ?= helm-docs
+chart ?= chart/k8s-metacollector
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.35.0
 
@@ -49,7 +52,30 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: fmt vet envtest ## Run unit tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $(shell go list ./... | grep -v /test/e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $(shell go list ./... | grep -v /test/e2e | grep -v /chart/) -coverprofile cover.out
+
+.PHONY: chart-lint
+chart-lint: ## Lint the Helm chart.
+	$(HELM) lint ${chart}
+
+.PHONY: chart-template
+chart-template: ## Render the Helm chart.
+	$(HELM) template k8s-metacollector ${chart} --namespace k8s-metacollector
+
+.PHONY: chart-docs
+chart-docs: ## Generate Helm chart README.
+	$(HELM_DOCS) -c ./${chart} -t ./README.gotmpl -o ./README.md
+
+.PHONY: chart-docs-check
+chart-docs-check: chart-docs ## Verify Helm chart README is up to date.
+	git diff --exit-code -- ${chart}/README.md
+
+.PHONY: chart-unit-test
+chart-unit-test: ## Run Helm chart unit tests.
+	go test ./${chart}/tests/unit/...
+
+.PHONY: chart-check
+chart-check: chart-lint chart-template chart-docs-check chart-unit-test ## Verify the Helm chart.
 
 NODENAME ?= minikube
 

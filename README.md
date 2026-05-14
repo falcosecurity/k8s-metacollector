@@ -105,4 +105,3 @@ There is also a default `grafana dashboard` ready to be used under `grafana` fol
 ## License
 
 This project is licensed to you under the [Apache 2.0](https://github.com/falcosecurity/k8s-metacollector/blob/main/LICENSE) license.
-

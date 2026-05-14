@@ -132,6 +132,8 @@ linters:
     usetesting:
       os-temp-dir: true
   exclusions:
+    paths:
+      - ^chart/k8s-metacollector/tests/unit/
     rules:
       # errcheck: Almost all programs ignore errors on these functions
       - linters:

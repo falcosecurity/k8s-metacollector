@@ -27,4 +27,4 @@ Dockerfile.cross
 *~
 
 # K8s-metacollector binary
-k8s-metacollector
+/k8s-metacollector
