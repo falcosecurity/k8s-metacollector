@@ -1,6 +1,6 @@
 <!--  Thanks for sending a pull request!  Here are some tips for you:
 
-1. If this is your first time, please read our contributor guidelines in the [CONTRIBUTING.md](https://github.com/falcosecurity/falco/blob/dev/CONTRIBUTING.md) file in the Falco repository.
+1. If this is your first time, please read our [CONTRIBUTING.md](../CONTRIBUTING.md).
 2. Please label this pull request according to what type of issue you are addressing.
 3. Please add a release note!
 4. If the PR is unfinished while opening it specify a wip in the title before the actual title, for example, "wip: my awesome feature"
@@ -18,6 +18,8 @@
 
 > /kind documentation
 
+> /kind tests
+
 > /kind failing-test
 
 > /kind feature
@@ -34,9 +36,11 @@
 
 > /area protocol-buffers
 
-> /grafana-dashboard
+> /area grafana-dashboard
 
 > /area collectors
+
+> /area chart
 
 > /area tests
 
