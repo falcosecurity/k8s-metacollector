@@ -26,6 +26,10 @@
 
 > /kind flaky-test
 
+> If this PR prepares a chart release, uncomment:
+
+> /kind chart-release
+
 **Any specific area of the project related to this PR?**
 
 > Uncomment one (or more) `/area <>` lines:
