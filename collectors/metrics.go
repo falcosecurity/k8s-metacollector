@@ -16,12 +16,13 @@
 package collectors
 
 import (
-	"github.com/falcosecurity/k8s-metacollector/pkg/consts"
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/falcosecurity/k8s-metacollector/pkg/consts"
 )
 
 const (
@@ -61,9 +62,9 @@ func init() {
 func predicatesWithMetrics(collectorName, sourceName string, filter func(object client.Object) bool) predicate.Funcs {
 	createCounter := ingestedEvents.WithLabelValues(collectorName, sourceName, labelCreate)
 	createCounter.Add(0)
-	updateCounter := ingestedEvents.WithLabelValues(collectorName, sourceName, labelDelete)
+	updateCounter := ingestedEvents.WithLabelValues(collectorName, sourceName, labelUpdate)
 	updateCounter.Add(0)
-	deleteCounter := ingestedEvents.WithLabelValues(collectorName, sourceName, labelUpdate)
+	deleteCounter := ingestedEvents.WithLabelValues(collectorName, sourceName, labelDelete)
 	deleteCounter.Add(0)
 	genericCounter := ingestedEvents.WithLabelValues(collectorName, sourceName, labelGeneric)
 	genericCounter.Add(0)
