@@ -19,12 +19,8 @@ import (
 	"context"
 	"flag"
 	"os"
+	"time"
 
-	"github.com/falcosecurity/k8s-metacollector/broker"
-	"github.com/falcosecurity/k8s-metacollector/collectors"
-	"github.com/falcosecurity/k8s-metacollector/pkg/events"
-	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
-	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -35,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +38,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/falcosecurity/k8s-metacollector/broker"
+	"github.com/falcosecurity/k8s-metacollector/collectors"
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
+	"github.com/falcosecurity/k8s-metacollector/pkg/transport"
 )
 
 var (
@@ -54,11 +56,12 @@ func init() {
 }
 
 type flags struct {
-	metricsAddr  string
-	probeAddr    string
-	brokerAddr   string
-	certFilePath string
-	keyFilePath  string
+	metricsAddr      string
+	probeAddr        string
+	brokerAddr       string
+	certFilePath     string
+	keyFilePath      string
+	watchIdleTimeout time.Duration
 }
 
 func (fl *flags) add(flags *pflag.FlagSet) {
@@ -67,6 +70,10 @@ func (fl *flags) add(flags *pflag.FlagSet) {
 	flags.StringVar(&fl.brokerAddr, "broker-bind-address", ":45000", "The address the broker endpoint binds to")
 	flags.StringVar(&fl.certFilePath, "broker-server-cert", "", "Cert file path for grpc server")
 	flags.StringVar(&fl.keyFilePath, "broker-server-key", "", "Key file path for grpc server")
+	flags.DurationVar(&fl.watchIdleTimeout, "watch-idle-timeout", 0,
+		"Maximum time a watch stream to the API server may stay silent before it is closed and re-established. "+
+			"Healthy watches receive bookmark events about every minute, so a silent stream is a dead stream. "+
+			"Disabled by default; set to a positive duration (e.g. 5m) to enable.")
 }
 
 type options struct {
@@ -121,14 +128,19 @@ func (opts *options) Run(ctx context.Context) {
 
 	setupLog := ctrl.Log.WithName("setup")
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	if opts.watchIdleTimeout > 0 {
+		restConfig.Wrap(transport.NewWatchIdleTimeoutWrapper(opts.watchIdleTimeout))
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme,
 		Metrics: server.Options{
 			BindAddress: opts.metricsAddr,
 		},
 		HealthProbeBindAddress: opts.probeAddr,
 		Cache: cache.Options{
-			DefaultUnsafeDisableDeepCopy: ptr.To(true),
+			DefaultUnsafeDisableDeepCopy: new(true),
 			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Transform: collectors.PodTransformer(setupLog),
