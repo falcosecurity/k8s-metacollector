@@ -106,7 +106,13 @@ func filterOutMetaFields(meta *metav1.ObjectMeta) {
 	meta.ManagedFields = nil
 	meta.Annotations = nil
 	meta.Finalizers = nil
-	meta.ResourceVersion = ""
+	// ResourceVersion is deliberately kept: since the InOrderInformers
+	// refactor (client-go >= 0.33), sharedIndexInformer.OnUpdate treats an
+	// update whose resourceVersion equals the cached one as a resync-only
+	// event; storing objects with a blanked resourceVersion makes every real
+	// update compare equal and silently stop reaching event handlers once the
+	// listener's initial syncing state expires at the first resync check
+	// (~SyncPeriod, default 10h). See #186.
 	meta.DeletionTimestamp = nil
 	meta.Generation = 0
 	meta.DeletionGracePeriodSeconds = nil
