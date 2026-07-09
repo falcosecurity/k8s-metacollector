@@ -210,7 +210,7 @@ func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Reso
 	}
 
 	// Remove unused meta fields
-	metaUnused := []string{"creationTimestamp", "ownerReferences"}
+	metaUnused := []string{"creationTimestamp", "ownerReferences", "resourceVersion"}
 
 	meta := svcUn["metadata"]
 	metaMap := meta.(map[string]any)

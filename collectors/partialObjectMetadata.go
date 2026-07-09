@@ -236,7 +236,7 @@ func (r *ObjectMetaCollector) objFieldsHandler(logger logr.Logger, res *events.R
 	}
 
 	// Remove unused meta fields
-	metaUnused := []string{"creationTimestamp", "ownerReferences"}
+	metaUnused := []string{"creationTimestamp", "ownerReferences", "resourceVersion"}
 	meta := objUn["metadata"]
 	metaMap := meta.(map[string]any)
 	for _, key := range metaUnused {
