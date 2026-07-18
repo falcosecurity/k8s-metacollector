@@ -350,32 +350,32 @@ func (opts *options) Run(ctx context.Context) {
 	}
 
 	if err = mgr.Add(dsCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dsCollector.GetName())
+		setupLog.Error(err, "unable to add collector to the manager as a runnable", "collector", dsCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(nsCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", nsCollector.GetName())
+		setupLog.Error(err, "unable to add collector to the manager as a runnable", "collector", nsCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(dplCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", dplCollector.GetName())
+		setupLog.Error(err, "unable to add collector to the manager as a runnable", "collector", dplCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(rsCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rsCollector.GetName())
+		setupLog.Error(err, "unable to add collector to the manager as a runnable", "collector", rsCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(rcCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", rcCollector.GetName())
+		setupLog.Error(err, "unable to add collector to the manager as a runnable", "collector", rcCollector.GetName())
 		os.Exit(1)
 	}
 
 	if err = mgr.Add(svcCollector); err != nil {
-		setupLog.Error(err, "unable to add %s collector to the manager as a runnable", svcCollector.GetName())
+		setupLog.Error(err, "unable to add collector to the manager as a runnable", "collector", svcCollector.GetName())
 		os.Exit(1)
 	}
 

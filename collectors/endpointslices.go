@@ -19,7 +19,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,6 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 )
 
 // EndpointslicesDispatcher each time an endpoint changes it triggers a reconcile for the pods and services to which it relates.

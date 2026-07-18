@@ -16,7 +16,7 @@
 package collectors
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
@@ -27,14 +27,14 @@ type logConstructor func(request *reconcile.Request) logr.Logger
 
 func newLogConstructor(log logr.Logger, name, resourceKind string) (logConstructor, error) {
 	if log.GetSink() == nil {
-		return nil, fmt.Errorf("unable to create the logConstructor, please provide a valid logger")
+		return nil, errors.New("unable to create the logConstructor, please provide a valid logger")
 	}
 	if name == "" {
-		return nil, fmt.Errorf("unable to create the logConstructor, expected a non empty name for logger")
+		return nil, errors.New("unable to create the logConstructor, expected a non empty name for logger")
 	}
 
 	if resourceKind == "" {
-		return nil, fmt.Errorf("unable to create the logConstructor, expected a non empty resource kind")
+		return nil, errors.New("unable to create the logConstructor, expected a non empty resource kind")
 	}
 
 	log = log.WithName(name)

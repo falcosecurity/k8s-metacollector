@@ -16,10 +16,11 @@
 package collectors
 
 import (
-	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 )
 
 type collectorOptions struct {

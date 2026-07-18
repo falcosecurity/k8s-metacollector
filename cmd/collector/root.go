@@ -18,10 +18,11 @@ package collector
 import (
 	"context"
 
-	"github.com/falcosecurity/k8s-metacollector/cmd/collector/run"
-	"github.com/falcosecurity/k8s-metacollector/cmd/collector/version"
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
+
+	"github.com/falcosecurity/k8s-metacollector/cmd/collector/run"
+	"github.com/falcosecurity/k8s-metacollector/cmd/collector/version"
 )
 
 // New returns the root command.

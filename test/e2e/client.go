@@ -22,10 +22,11 @@ import (
 	"io"
 	"sync"
 
-	"github.com/falcosecurity/k8s-metacollector/metadata"
-	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/falcosecurity/k8s-metacollector/metadata"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 )
 
 type message struct {
@@ -76,7 +77,7 @@ type Client struct {
 
 // NewClient returns a client.
 func NewClient(nodeName, port string) (Client, error) {
-	serverAddr := fmt.Sprintf("localhost:%s", port)
+	serverAddr := "localhost:" + port
 	grpcOpts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	conn, err := grpc.NewClient(serverAddr, grpcOpts)
 	if err != nil {
@@ -112,7 +113,7 @@ func (c *Client) Watch(ctx context.Context) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("an error occurred while performing the watch procedure")
+		return errors.New("an error occurred while performing the watch procedure")
 	}
 	go func() {
 		for {
