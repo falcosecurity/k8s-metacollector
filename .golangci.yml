@@ -5,11 +5,13 @@ run:
 
 linters:
   enable:
-    - asciicheck
     - asasalint
+    - asciicheck
     - bidichk
     - bodyclose
+    - canonicalheader
     - containedctx
+    - contextcheck
     - copyloopvar
     - dogsled
     - dupl
@@ -20,6 +22,11 @@ linters:
     - errname
     - errorlint
     - exhaustive
+    - exptostd
+    - fatcontext
+    - forcetypeassert
+    - ginkgolinter
+    - gocheckcompilerdirectives
     - goconst
     - gocritic
     - gocyclo
@@ -29,26 +36,38 @@ linters:
     - goprintffuncname
     - gosec
     - govet
-    - ineffassign
+    - inamedparam
     - importas
+    - ineffassign
     - intrange
     - lll
+    - loggercheck
+    - mirror
     - misspell
     - modernize
     - nakedret
     - nilerr
+    - nilnil
     - noctx
     - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - prealloc
     - predeclared
     - promlinter
     - reassign
+    - recvcheck
     - revive
     - rowserrcheck
+    - sloglint
     - staticcheck
+    - testableexamples
     - testifylint
+    - thelper
     - unconvert
     - unparam
     - unused
+    - usestdlibvars
     - usetesting
     - wastedassign
     - whitespace
@@ -101,6 +120,9 @@ linters:
           alias: k8serrors
         - pkg: sigs.k8s.io/controller-runtime/pkg/log
           alias: ctrllog
+    loggercheck:
+      require-string-key: true
+      no-printf-like: true
     misspell:
       locale: US
     nolintlint:
@@ -125,6 +147,14 @@ linters:
         - name: empty-block
           severity: warning
           disabled: false
+    sloglint:
+      no-mixed-args: true
+      kv-only: false
+      attr-only: false
+      no-global: "all"
+      context: "scope"
+      static-msg: false
+      key-naming-case: snake
     testifylint:
       enable-all: true
       disable:
@@ -168,12 +198,15 @@ linters:
           - revive
         path: internal/|test/
         text: 'exported: exported'
+      # nilnil: context.Context cancel funcs return nil error by design
+      - linters:
+          - nilnil
+        text: return both a `nil` error and an invalid value
 
 formatters:
   enable:
     - gci
     - gofmt
-    - goimports
   settings:
     gci:
       sections:
@@ -181,9 +214,6 @@ formatters:
         - default
         - prefix(github.com/falcosecurity/k8s-metacollector)
       custom-order: true
-    goimports:
-      local-prefixes:
-        - github.com/falcosecurity/k8s-metacollector
 
 issues:
   fix: true

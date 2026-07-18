@@ -23,10 +23,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/falcosecurity/k8s-metacollector/test/e2e"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+
+	"github.com/falcosecurity/k8s-metacollector/test/e2e"
 )
 
 var (
@@ -62,7 +63,7 @@ var _ = BeforeSuite(func(ctx context.Context) {
 	DeferCleanup(gexec.CleanupBuildArtifacts)
 
 	// Start the collector.
-	cmd := exec.Command(k8sMetaCollectorBin, "run") //nolint:gosec //Path is not predictable.
+	cmd := exec.Command(k8sMetaCollectorBin, "run")
 	collectorMainSession, err = gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 	Expect(err).NotTo(HaveOccurred())
 	// Wait for the collector to be ready.
@@ -78,12 +79,12 @@ var _ = BeforeSuite(func(ctx context.Context) {
 	// Create the deployer
 	deployer = e2e.NewDeployer("./resources/")
 	// Deploy all resources.
-	Expect(deployer.DeployAll(GinkgoT(), GinkgoWriter, mainNamespace, 6)).NotTo(HaveOccurred())
+	Expect(deployer.DeployAll(ctx, GinkgoT(), GinkgoWriter, mainNamespace, 6)).NotTo(HaveOccurred())
 }, NodeTimeout(time.Minute*1))
 
 var _ = AfterSuite(func(ctx context.Context) {
 	// Remove all deployed resources.
-	Expect(deployer.CleanUp(GinkgoT(), GinkgoWriter)).NotTo(HaveOccurred())
+	Expect(deployer.CleanUp(ctx, GinkgoT(), GinkgoWriter)).NotTo(HaveOccurred())
 	// Stop the collector.
 	collectorMainSession.Terminate()
 	Eventually(ctx, collectorMainSession).Should(gexec.Exit(0))

@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/falcosecurity/k8s-metacollector/pkg/events"
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/gruntwork-io/terratest/modules/logger"
 	"github.com/gruntwork-io/terratest/modules/testing"
@@ -32,6 +31,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
 )
 
 // Deployer knows how to deploy resources.
@@ -49,30 +50,29 @@ func NewDeployer(resourcePath string) Deployer {
 }
 
 // DeployAll deploys all resources and waits until the expected pods are running.
-func (dpl *Deployer) DeployAll(t testing.TestingT, writer io.Writer, namespace string, expectedPods int) error {
+func (dpl *Deployer) DeployAll(ctx context.Context, t testing.TestingT, writer io.Writer, namespace string, expectedPods int) error {
 	log := logger.New(NewLogger(writer))
 	// We use it to clean up at the end.
 	dpl.namespaces[namespace] = struct{}{}
-	//
 
-	if err := k8s.CreateNamespaceE(t, &k8s.KubectlOptions{Logger: log}, namespace); err != nil {
+	if err := k8s.CreateNamespaceContextE(t, ctx, &k8s.KubectlOptions{Logger: log}, namespace); err != nil {
 		return err
 	}
 
 	// Deploy k8s resources in the cluster.
 	kubectlOptions := k8s.NewKubectlOptions("", "", namespace)
 	kubectlOptions.Logger = log
-	if err := k8s.KubectlApplyE(t, kubectlOptions, fmt.Sprintf("%s/*", strings.TrimSuffix(dpl.resourcesPath, "/"))); err != nil {
+	if err := k8s.KubectlApplyContextE(t, ctx, kubectlOptions, strings.TrimSuffix(dpl.resourcesPath, "/")+"/*"); err != nil {
 		return err
 	}
 
-	return k8s.WaitUntilNumPodsCreatedE(t, kubectlOptions, metav1.ListOptions{}, expectedPods, 10, time.Second*5)
+	return k8s.WaitUntilNumPodsCreatedContextE(t, ctx, kubectlOptions, metav1.ListOptions{}, expectedPods, 10, time.Second*5)
 }
 
 // CleanUp removes all resources previously deployed.
-func (dpl *Deployer) CleanUp(t testing.TestingT, writer io.Writer) error {
+func (dpl *Deployer) CleanUp(ctx context.Context, t testing.TestingT, writer io.Writer) error {
 	for ns := range dpl.namespaces {
-		if err := k8s.DeleteNamespaceE(t, &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}, ns); err != nil {
+		if err := k8s.DeleteNamespaceContextE(t, ctx, &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}, ns); err != nil {
 			return err
 		}
 	}
@@ -82,7 +82,7 @@ func (dpl *Deployer) CleanUp(t testing.TestingT, writer io.Writer) error {
 
 		for !k8serrors.IsNotFound(err) {
 			time.Sleep(5 * time.Second)
-			_, err = k8s.GetNamespaceE(t, &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}, ns)
+			_, err = k8s.GetNamespaceContextE(t, ctx, &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}, ns)
 		}
 
 		err = nil
@@ -92,13 +92,12 @@ func (dpl *Deployer) CleanUp(t testing.TestingT, writer io.Writer) error {
 }
 
 // ListPods returns all the pods running on the given node.
-func (dpl *Deployer) ListPods(t testing.TestingT, writer io.Writer, node string) ([]corev1.Pod, error) {
+func (dpl *Deployer) ListPods(ctx context.Context, t testing.TestingT, writer io.Writer, node string) ([]corev1.Pod, error) {
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
-	pods, err := k8s.ListPodsE(t, opt, metav1.ListOptions{
+	pods, err := k8s.ListPodsContextE(t, ctx, opt, metav1.ListOptions{
 		FieldSelector: NodeFieldSelector + node,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -107,20 +106,20 @@ func (dpl *Deployer) ListPods(t testing.TestingT, writer io.Writer, node string)
 }
 
 // ListNamespaces returns all the namespaces related to the given node.
-func (dpl *Deployer) ListNamespaces(t testing.TestingT, writer io.Writer, node string) ([]corev1.Namespace, error) {
+func (dpl *Deployer) ListNamespaces(ctx context.Context, t testing.TestingT, writer io.Writer, node string) ([]corev1.Namespace, error) {
 	var namespaces []corev1.Namespace
 	processed := map[string]struct{}{}
 
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
-	pods, err := dpl.ListPods(t, writer, node)
+	pods, err := dpl.ListPods(ctx, t, writer, node)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range pods {
 		if _, ok := processed[pods[i].Namespace]; !ok {
-			ns, err := k8s.GetNamespaceE(t, opt, pods[i].Namespace)
+			ns, err := k8s.GetNamespaceContextE(t, ctx, opt, pods[i].Namespace)
 			if err != nil {
 				return nil, err
 			}
@@ -133,13 +132,13 @@ func (dpl *Deployer) ListNamespaces(t testing.TestingT, writer io.Writer, node s
 }
 
 // ListReplicaSets returns all the replicasets related to the given node.
-func (dpl *Deployer) ListReplicaSets(t testing.TestingT, writer io.Writer, node string) ([]appsv1.ReplicaSet, error) {
+func (dpl *Deployer) ListReplicaSets(ctx context.Context, t testing.TestingT, writer io.Writer, node string) ([]appsv1.ReplicaSet, error) {
 	var replicasets []appsv1.ReplicaSet
 	processed := map[string]struct{}{}
 
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
-	pods, err := dpl.ListPods(t, writer, node)
+	pods, err := dpl.ListPods(ctx, t, writer, node)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +149,7 @@ func (dpl *Deployer) ListReplicaSets(t testing.TestingT, writer io.Writer, node 
 		if owner != nil && owner.Kind == "ReplicaSet" {
 			opt.Namespace = pods[i].Namespace
 			// Get the replica set.
-			rs, err := k8s.GetReplicaSetE(t, opt, owner.Name)
+			rs, err := k8s.GetReplicaSetContextE(t, ctx, opt, owner.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -167,13 +166,13 @@ func (dpl *Deployer) ListReplicaSets(t testing.TestingT, writer io.Writer, node 
 }
 
 // ListDeployments returns all the deployments related to the given node.
-func (dpl *Deployer) ListDeployments(t testing.TestingT, writer io.Writer, node string) ([]appsv1.Deployment, error) {
+func (dpl *Deployer) ListDeployments(ctx context.Context, t testing.TestingT, writer io.Writer, node string) ([]appsv1.Deployment, error) {
 	var deployments []appsv1.Deployment
 	processed := map[string]struct{}{}
 
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
-	replicasets, err := dpl.ListReplicaSets(t, writer, node)
+	replicasets, err := dpl.ListReplicaSets(ctx, t, writer, node)
 	if err != nil {
 		return nil, err
 	}
@@ -184,14 +183,14 @@ func (dpl *Deployer) ListDeployments(t testing.TestingT, writer io.Writer, node 
 		if owner != nil && owner.Kind == "Deployment" {
 			opt.Namespace = replicasets[i].Namespace
 			// Get the deployment.
-			dpl, err := k8s.GetDeploymentE(t, opt, owner.Name)
+			d, err := k8s.GetDeploymentContextE(t, ctx, opt, owner.Name)
 			if err != nil {
 				return nil, err
 			}
 
-			key := fmt.Sprintf("%s/%s", dpl.Name, dpl.Namespace)
+			key := fmt.Sprintf("%s/%s", d.Name, d.Namespace)
 			if _, ok := processed[key]; !ok {
-				deployments = append(deployments, *dpl)
+				deployments = append(deployments, *d)
 				processed[key] = struct{}{}
 			}
 		}
@@ -201,13 +200,14 @@ func (dpl *Deployer) ListDeployments(t testing.TestingT, writer io.Writer, node 
 }
 
 // ListReplicationControllers returns all the replicationcontrollers related to the given node.
-func (dpl *Deployer) ListReplicationControllers(t testing.TestingT, writer io.Writer, node string) ([]corev1.ReplicationController, error) {
+func (dpl *Deployer) ListReplicationControllers(ctx context.Context, t testing.TestingT, writer io.Writer,
+	node string) ([]corev1.ReplicationController, error) {
 	var replicationcontrollers []corev1.ReplicationController
 	processed := map[string]struct{}{}
 
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
-	pods, err := dpl.ListPods(t, writer, node)
+	pods, err := dpl.ListPods(ctx, t, writer, node)
 	if err != nil {
 		return nil, err
 	}
@@ -217,12 +217,11 @@ func (dpl *Deployer) ListReplicationControllers(t testing.TestingT, writer io.Wr
 		owner := events.ManagingOwner(pods[i].OwnerReferences)
 		if owner != nil && owner.Kind == "ReplicationController" {
 			opt.Namespace = pods[i].Namespace
-			// Get the replica set.
-			clientset, err := k8s.GetKubernetesClientFromOptionsE(t, opt)
+			clientset, err := k8s.GetKubernetesClientFromOptionsContextE(t, ctx, opt)
 			if err != nil {
 				return nil, err
 			}
-			rc, err := clientset.CoreV1().ReplicationControllers(opt.Namespace).Get(context.Background(), owner.Name, metav1.GetOptions{})
+			rc, err := clientset.CoreV1().ReplicationControllers(opt.Namespace).Get(ctx, owner.Name, metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -239,13 +238,13 @@ func (dpl *Deployer) ListReplicationControllers(t testing.TestingT, writer io.Wr
 }
 
 // ListDaemonsets returns all the daemonsets related to the given node.
-func (dpl *Deployer) ListDaemonsets(t testing.TestingT, writer io.Writer, node string) ([]appsv1.DaemonSet, error) {
+func (dpl *Deployer) ListDaemonsets(ctx context.Context, t testing.TestingT, writer io.Writer, node string) ([]appsv1.DaemonSet, error) {
 	var daemonsets []appsv1.DaemonSet
 	processed := map[string]struct{}{}
 
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
-	pods, err := dpl.ListPods(t, writer, node)
+	pods, err := dpl.ListPods(ctx, t, writer, node)
 	if err != nil {
 		return nil, err
 	}
@@ -255,8 +254,7 @@ func (dpl *Deployer) ListDaemonsets(t testing.TestingT, writer io.Writer, node s
 		owner := events.ManagingOwner(pods[i].OwnerReferences)
 		if owner != nil && owner.Kind == "Daemonset" {
 			opt.Namespace = pods[i].Namespace
-			// Get the replica set.
-			ds, err := k8s.GetDaemonSetE(t, opt, owner.Name)
+			ds, err := k8s.GetDaemonSetContextE(t, ctx, opt, owner.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -273,14 +271,14 @@ func (dpl *Deployer) ListDaemonsets(t testing.TestingT, writer io.Writer, node s
 }
 
 // ListServices returns all the services related to the given node.
-func (dpl *Deployer) ListServices(t testing.TestingT, writer io.Writer, node string) ([]corev1.Service, error) {
+func (dpl *Deployer) ListServices(ctx context.Context, t testing.TestingT, writer io.Writer, node string) ([]corev1.Service, error) {
 	var svcs []corev1.Service
 	processed := map[string]struct{}{}
 
 	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
 
 	// List all existing pods services.
-	services, err := k8s.ListServicesE(t, opt, metav1.ListOptions{})
+	services, err := k8s.ListServicesContextE(t, ctx, opt, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +295,7 @@ func (dpl *Deployer) ListServices(t testing.TestingT, writer io.Writer, node str
 			continue
 		}
 
-		pods, err := k8s.ListPodsE(t, opt, metav1.ListOptions{
+		pods, err := k8s.ListPodsContextE(t, ctx, opt, metav1.ListOptions{
 			LabelSelector: makeLabelSelector(services[i].Spec.Selector),
 			FieldSelector: NodeFieldSelector + node,
 		})
@@ -319,7 +317,7 @@ func (dpl *Deployer) ListServices(t testing.TestingT, writer io.Writer, node str
 
 // makeLabelSelector is a helper to format a map of label key and value pairs into a single string for use as a selector.
 func makeLabelSelector(labels map[string]string) string {
-	out := []string{}
+	out := make([]string, 0, len(labels))
 	for key, value := range labels {
 		out = append(out, fmt.Sprintf("%s=%s", key, value))
 	}

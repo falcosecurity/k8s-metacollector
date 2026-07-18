@@ -21,12 +21,13 @@ import (
 	"net"
 	"sync"
 
-	"github.com/falcosecurity/k8s-metacollector/metadata"
-	"github.com/falcosecurity/k8s-metacollector/pkg/events"
-	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/falcosecurity/k8s-metacollector/metadata"
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 )
 
 // Broker receives events from the collectors and sends them to the subscribers.
@@ -120,7 +121,7 @@ func (br *Broker) Start(ctx context.Context) error {
 				}
 				con, ok := c.(metadata.Connection)
 				if !ok {
-					br.logger.Error(fmt.Errorf("failed to cast subscriber connection %T", con), "subscriber", sub)
+					br.logger.Error(fmt.Errorf("failed to cast subscriber connection: got %T", c), "failed to cast subscriber connection", "subscriber", sub)
 					continue
 				}
 				if err := con.Stream.Send(evt.GRPCMessage()); err != nil {

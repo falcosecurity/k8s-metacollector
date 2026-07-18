@@ -20,7 +20,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 )
 
 func TestManagingOwner(t *testing.T) {
@@ -32,14 +31,14 @@ func TestManagingOwner(t *testing.T) {
 		{
 			name: "Controller is set to true",
 			references: []metav1.OwnerReference{{
-				Controller: ptr.To(true),
+				Controller: new(true),
 			}},
 			expected: true,
 		},
 		{
 			name: "Controller is set to false",
 			references: []metav1.OwnerReference{{
-				Controller: ptr.To(false),
+				Controller: new(false),
 			}},
 			expected: false,
 		},

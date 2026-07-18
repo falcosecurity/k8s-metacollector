@@ -18,8 +18,9 @@ package version
 import (
 	"fmt"
 
-	"github.com/falcosecurity/k8s-metacollector/pkg/version"
 	"github.com/spf13/cobra"
+
+	"github.com/falcosecurity/k8s-metacollector/pkg/version"
 )
 
 // New returns the version command.

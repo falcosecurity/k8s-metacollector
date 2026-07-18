@@ -18,12 +18,8 @@ package collectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
-	"github.com/falcosecurity/k8s-metacollector/broker"
-	"github.com/falcosecurity/k8s-metacollector/pkg/events"
-	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
-	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
-	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 	"github.com/go-logr/logr"
 	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/falcosecurity/k8s-metacollector/broker"
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
+	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 )
 
 // ServiceCollector collects services' metadata, puts them in a local cache and generates appropriate
@@ -213,7 +215,10 @@ func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Reso
 	metaUnused := []string{"creationTimestamp", "ownerReferences", "resourceVersion"}
 
 	meta := svcUn["metadata"]
-	metaMap := meta.(map[string]any)
+	metaMap, ok := meta.(map[string]any)
+	if !ok {
+		return fmt.Errorf("unexpected type for metadata field: %T", meta)
+	}
 	for _, key := range metaUnused {
 		delete(metaMap, key)
 	}

@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/falcosecurity/k8s-metacollector/cmd/collector"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/falcosecurity/k8s-metacollector/cmd/collector"
 )
 
 func main() {

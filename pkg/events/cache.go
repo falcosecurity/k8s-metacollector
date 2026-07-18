@@ -18,8 +18,9 @@ package events
 import (
 	"sync"
 
-	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
 )
 
 // Cache for resources items. For each resource that is sent to at least
