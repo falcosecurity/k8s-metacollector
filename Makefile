@@ -163,11 +163,21 @@ else
 GOLANGCILINT=$(shell which golangci-lint)
 endif
 
+# Install govulncheck if not available
+govulncheck:
+ifeq (, $(shell which govulncheck))
+	@go install golang.org/x/vuln/cmd/govulncheck@latest
+GOVULNCHECK=$(GOBIN)/govulncheck
+else
+GOVULNCHECK=$(shell which govulncheck)
+endif
+
 # It works when called in a branch different than main.
 # "--new-from-rev REV Show only new issues created after git revision REV"
-lint: golangci-lint
+lint: golangci-lint govulncheck
 	$(GOLANGCILINT) config verify
 	$(GOLANGCILINT) run --new-from-rev main
+	$(GOVULNCHECK) ./...
 
 # Generate gRPC files
 grpc: protoc
