@@ -8,9 +8,9 @@ require (
 	github.com/go-logr/logr v1.4.4
 	github.com/gruntwork-io/terratest v1.0.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/ginkgo/v2 v2.32.0
+	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
