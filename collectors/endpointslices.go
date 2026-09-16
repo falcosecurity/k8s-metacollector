@@ -64,10 +64,10 @@ func (r *EndpointslicesDispatcher) Reconcile(ctx context.Context, req ctrl.Reque
 		pods, ok := r.Pods[req.String()]
 		if ok {
 			logger.V(3).Info("triggering pods and service since the resource has been deleted")
-			r.triggerPods(req.Namespace, pods)
+			r.triggerPods(ctx, req.Namespace, pods)
 			// Get the service name.
 			if svcName, ok := r.ServicesName[req.Name]; ok {
-				r.triggerService(types.NamespacedName{
+				r.triggerService(ctx, types.NamespacedName{
 					Namespace: req.Namespace,
 					Name:      svcName,
 				})
@@ -87,10 +87,10 @@ func (r *EndpointslicesDispatcher) Reconcile(ctx context.Context, req ctrl.Reque
 	addedPods, deletedPods := r.getPods(eps, &req)
 
 	// Trigger the pods.
-	r.triggerPods(eps.Namespace, addedPods)
-	r.triggerPods(eps.Namespace, deletedPods)
+	r.triggerPods(ctx, eps.Namespace, addedPods)
+	r.triggerPods(ctx, eps.Namespace, deletedPods)
 	if svcName, ok := r.ServicesName[req.Name]; ok {
-		r.triggerService(types.NamespacedName{
+		r.triggerService(ctx, types.NamespacedName{
 			Namespace: req.Namespace,
 			Name:      svcName,
 		})
@@ -99,22 +99,33 @@ func (r *EndpointslicesDispatcher) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *EndpointslicesDispatcher) triggerPods(namespace string, pods map[string]struct{}) {
+// triggerPods sends a trigger to the pod collector for each pod. The sends are bounded by the context: at
+// shutdown the pod collector stops reading its source channel, and a plain send would block forever, keeping
+// the controller worker (and so the manager) alive until the graceful shutdown timeout expires.
+func (r *EndpointslicesDispatcher) triggerPods(ctx context.Context, namespace string, pods map[string]struct{}) {
 	for p := range pods {
 		obj := NewPartialObjectMetadata(resource.Pod, &types.NamespacedName{
 			Namespace: namespace,
 			Name:      p,
 		})
 
-		r.PodCollectorSource <- event.GenericEvent{Object: obj}
+		select {
+		case r.PodCollectorSource <- event.GenericEvent{Object: obj}:
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
-func (r *EndpointslicesDispatcher) triggerService(meta types.NamespacedName) {
+// triggerService sends a trigger to the service collector. See triggerPods for why the send is bounded by the context.
+func (r *EndpointslicesDispatcher) triggerService(ctx context.Context, meta types.NamespacedName) {
 	// Endpoints name is the same as the one of the service to which refers.
 	obj := NewPartialObjectMetadata(resource.Service, &meta)
 
-	r.ServiceCollectorSource <- event.GenericEvent{Object: obj}
+	select {
+	case r.ServiceCollectorSource <- event.GenericEvent{Object: obj}:
+	case <-ctx.Done():
+	}
 }
 
 func (r *EndpointslicesDispatcher) getPods(eps *discoveryv1.EndpointSlice, req *ctrl.Request) (added, deleted map[string]struct{}) {
