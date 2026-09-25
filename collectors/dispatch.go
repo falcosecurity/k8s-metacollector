@@ -22,7 +22,6 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,45 +66,35 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 					switch resourceKind {
 					case resource.Pod:
 						dispatcherChan <- event.GenericEvent{Object: &corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      podList.Items[podIndex].Name,
-								Namespace: podList.Items[podIndex].Namespace,
-							},
+							Name:      podList.Items[podIndex].Name,
+							Namespace: podList.Items[podIndex].Namespace,
 						}}
 					case resource.Namespace:
 						dispatcherChan <- event.GenericEvent{Object: &corev1.Namespace{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: podList.Items[podIndex].Namespace,
-							},
+							Name: podList.Items[podIndex].Namespace,
 						}}
 					case resource.ReplicaSet:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner != nil && owner.Kind == resource.ReplicaSet {
 							dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:      owner.Name,
-									Namespace: podList.Items[podIndex].Namespace,
-								},
+								Name:      owner.Name,
+								Namespace: podList.Items[podIndex].Namespace,
 							}}
 						}
 					case resource.ReplicationController:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner != nil && owner.Kind == resource.ReplicationController {
 							dispatcherChan <- event.GenericEvent{Object: &corev1.ReplicationController{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:      owner.Name,
-									Namespace: podList.Items[podIndex].Namespace,
-								},
+								Name:      owner.Name,
+								Namespace: podList.Items[podIndex].Namespace,
 							}}
 						}
 					case resource.Daemonset:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner != nil && owner.Kind == resource.Daemonset {
 							dispatcherChan <- event.GenericEvent{Object: &appsv1.DaemonSet{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:      owner.Name,
-									Namespace: podList.Items[podIndex].Namespace,
-								},
+								Name:      owner.Name,
+								Namespace: podList.Items[podIndex].Namespace,
 							}}
 						}
 					case resource.Deployment:
@@ -122,10 +111,8 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 							owner = events.ManagingOwner(replicaSet.OwnerReferences)
 							if owner != nil && owner.Kind == resource.Deployment {
 								dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
-									ObjectMeta: metav1.ObjectMeta{
-										Name:      owner.Name,
-										Namespace: podList.Items[podIndex].Namespace,
-									},
+									Name:      owner.Name,
+									Namespace: podList.Items[podIndex].Namespace,
 								}}
 							}
 						}
@@ -139,10 +126,8 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 							sel := labels.SelectorFromValidatedSet(serviceList.Items[svcIndex].Spec.Selector)
 							if !sel.Empty() && sel.Matches(labels.Set(podList.Items[podIndex].GetLabels())) {
 								dispatcherChan <- event.GenericEvent{Object: &corev1.Service{
-									ObjectMeta: metav1.ObjectMeta{
-										Name:      serviceList.Items[svcIndex].Name,
-										Namespace: podList.Items[podIndex].Namespace,
-									},
+									Name:      serviceList.Items[svcIndex].Name,
+									Namespace: podList.Items[podIndex].Namespace,
 								}}
 							}
 						}

@@ -47,6 +47,9 @@ import (
 	"github.com/falcosecurity/k8s-metacollector/pkg/transport"
 )
 
+// generateNameField is the pod field used to match pods owned by a resource.
+const generateNameField = "metadata.generateName"
+
 var (
 	scheme = runtime.NewScheme()
 )
@@ -91,7 +94,6 @@ func New(ctx context.Context, logger *logr.Logger) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [flags]",
 		Short: "Runs the metacollector",
-		Long:  "Runs the metacollector",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			opts.Run(ctx)
@@ -231,7 +233,7 @@ func (opts *options) Run(ctx context.Context) {
 		collectors.WithExternalSource(dpl),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
-				"metadata.generateName": meta.Name,
+				generateNameField: meta.Name,
 			}
 		}))
 
@@ -247,7 +249,7 @@ func (opts *options) Run(ctx context.Context) {
 		collectors.WithExternalSource(rs),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
-				"metadata.generateName": meta.Name + "-",
+				generateNameField: meta.Name + "-",
 			}
 		}))
 
@@ -274,7 +276,7 @@ func (opts *options) Run(ctx context.Context) {
 		collectors.WithExternalSource(ds),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
-				"metadata.generateName": meta.Name + "-",
+				generateNameField: meta.Name + "-",
 			}
 		}))
 
@@ -290,7 +292,7 @@ func (opts *options) Run(ctx context.Context) {
 		collectors.WithExternalSource(rc),
 		collectors.WithPodMatchingFields(func(meta *metav1.ObjectMeta) client.ListOption {
 			return &client.MatchingFields{
-				"metadata.generateName": meta.Name + "-",
+				generateNameField: meta.Name + "-",
 			}
 		}))
 
