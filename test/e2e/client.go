@@ -87,11 +87,9 @@ func NewClient(nodeName, port string) (Client, error) {
 	metaClient := metadata.NewMetadataClient(conn)
 
 	return Client{
-		nodeName: nodeName,
-		message: message{
-			grpcEvents: map[string]*metadata.Event{},
-			rwLock:     sync.RWMutex{},
-		},
+		nodeName:   nodeName,
+		grpcEvents: map[string]*metadata.Event{},
+		rwLock:     sync.RWMutex{},
 		metaClient: metaClient,
 		connection: conn,
 	}, nil

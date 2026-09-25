@@ -22,8 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -39,7 +37,7 @@ import (
 // waits for the whole graceful shutdown period before exiting with an error.
 func TestEndpointslicesDispatcherReconcileReturnsOnCanceledContext(t *testing.T) {
 	eps := &discoveryv1.EndpointSlice{
-		ObjectMeta: metav1.ObjectMeta{Name: "nginx-abc12", Namespace: "nginx-test", GenerateName: "nginx-"},
+		Name: "nginx-abc12", Namespace: "nginx-test", GenerateName: "nginx-",
 		Endpoints: []discoveryv1.Endpoint{
 			{TargetRef: &corev1.ObjectReference{Kind: resource.Pod, Name: "pod-1"}},
 			{TargetRef: &corev1.ObjectReference{Kind: resource.Pod, Name: "pod-2"}},
@@ -65,7 +63,7 @@ func TestEndpointslicesDispatcherReconcileReturnsOnCanceledContext(t *testing.T)
 	go func() {
 		defer close(done)
 		_, _ = dispatcher.Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{Namespace: eps.Namespace, Name: eps.Name},
+			Namespace: eps.Namespace, Name: eps.Name,
 		})
 	}()
 

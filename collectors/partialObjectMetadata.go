@@ -45,6 +45,9 @@ import (
 	"github.com/falcosecurity/k8s-metacollector/pkg/subscriber"
 )
 
+// metaUnused lists the metadata fields stripped from objects before they are sent to subscribers.
+var metaUnused = []string{"creationTimestamp", "ownerReferences", "resourceVersion"}
+
 // ObjectMetaCollector collects resources' metadata, puts them in a local cache and generates appropriate
 // events when such resources change over time.
 type ObjectMetaCollector struct {
@@ -238,7 +241,6 @@ func (r *ObjectMetaCollector) objFieldsHandler(logger logr.Logger, res *events.R
 	}
 
 	// Remove unused meta fields
-	metaUnused := []string{"creationTimestamp", "ownerReferences", "resourceVersion"}
 	meta := objUn["metadata"]
 	metaMap, ok := meta.(map[string]any)
 	if !ok {

@@ -42,7 +42,7 @@ func newLogConstructor(log logr.Logger, name, resourceKind string) (logConstruct
 	return func(req *reconcile.Request) logr.Logger {
 		log := log
 		if req != nil {
-			log = log.WithValues(resourceKind, klog.KRef(req.Namespace, req.Name))
+			log = log.WithValues(resourceKind, klog.KRef(req.Namespace, req.Name)) //nolint:loggercheck // key is the resource kind by design
 		}
 		return log
 	}, nil

@@ -1,8 +1,8 @@
 module github.com/falcosecurity/k8s-metacollector
 
-go 1.26.0
+go 1.27.0
 
-toolchain go1.26.6
+toolchain go1.27.1
 
 require (
 	github.com/go-logr/logr v1.4.4

@@ -151,13 +151,13 @@ endif
 fmt: gci addlicense
 	go mod tidy
 	go fmt ./...
-	find . -type f -name '*.go' -a -exec $(GCI) write -s standard -s default -s "prefix(github.com/falcosecurity/k8s-metadata)" {} \;
+	find . -type f -name '*.go' -a -exec $(GCI) write -s standard -s default -s "prefix(github.com/falcosecurity/k8s-metacollector)" {} \;
 	find . -type f -name '*.go' -exec $(ADDLICENSE) -l apache -c "The Falco Authors" -y "$(shell date +%Y)" {} \;
 
 # Install golangci-lint if not available
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.1
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 GOLANGCILINT=$(GOBIN)/golangci-lint
 else
 GOLANGCILINT=$(shell which golangci-lint)

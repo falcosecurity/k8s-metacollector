@@ -1,4 +1,5 @@
-// Copyright 2024 The Falco Authors
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,23 +18,30 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"sync"
 
-	"github.com/falcosecurity/k8s-metacollector/metadata"
-	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/falcosecurity/k8s-metacollector/metadata"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 )
 
 func main() {
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	var (
 		serverAddr = flag.String("addr", "localhost:45000", "The server address in the format of host:port.")
-		//kubeconfig = flag.String("kubeconfig", "", "Paths to a kubeconfig. Only required if out-of-cluster.")
 		nodeName   = flag.String("node-name", "", "Name of the node used to subscribe.")
 		numClients = flag.Int("num-clients", 1, "Number of clients to create.")
 		noOutput   = flag.Bool("no-output", false, "When true does not print messages")
@@ -49,10 +57,10 @@ func main() {
 	logger := zap.New(zap.UseFlagOptions(&logOpts))
 
 	grpcOpts := grpc.WithTransportCredentials(insecure.NewCredentials())
-	conn, err := grpc.Dial(*serverAddr, grpcOpts)
+	conn, err := grpc.NewClient(*serverAddr, grpcOpts)
 	if err != nil {
 		logger.Error(err, "unable to create grpc connection")
-		os.Exit(1)
+		return err
 	}
 
 	defer conn.Close()
@@ -78,19 +86,18 @@ func main() {
 
 		if err != nil {
 			logger.Error(err, "an error occurred while performing the Watch procedure")
-			os.Exit(1)
+			return err
 		}
 
-		wait.Add(1)
-		go func() {
+		wait.Go(func() {
 			if !*noOutput {
 				fmt.Println("[")
 			}
 			for {
 				in, err := stream.Recv()
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					logger.Info("received EOF, exiting")
-					wait.Done()
+					return
 				}
 
 				if err != nil {
@@ -98,24 +105,21 @@ func main() {
 						fmt.Print("]")
 					}
 					logger.Error(err, "an error occurred while receiving events")
-					wait.Done()
 					return
 				}
 
 				data, err := json.MarshalIndent(in, "", "  ")
 				if err != nil {
 					logger.Error(err, "unable to marshal event", "evt", in.String())
-				} else {
-					if !*noOutput {
-						fmt.Print(string(data))
-						fmt.Println(",")
-					}
+				} else if !*noOutput {
+					fmt.Print(string(data))
+					fmt.Println(",")
 				}
 			}
-		}()
+		})
 	}
 
 	wait.Wait()
 	fmt.Print("]")
-	os.Exit(0)
+	return nil
 }

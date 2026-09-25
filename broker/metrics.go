@@ -31,6 +31,10 @@ const (
 	queueLatencyKey     = "queue_duration_seconds"
 	addsKey             = "queue_adds"
 	dispatchedEventsKey = "dispatched_events"
+
+	nameLabel = "name"
+	typeLabel = "type"
+	kindLabel = "kind"
 )
 
 var (
@@ -42,14 +46,14 @@ var (
 		Name:      queueLatencyKey,
 		Help:      "How long in seconds an event stays in the queue before being requested.",
 		Buckets:   prometheus.ExponentialBuckets(10e-9, 10, 10),
-	}, []string{"name"})
+	}, []string{nameLabel})
 
 	adds = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: consts.MetricsNamespace,
 		Subsystem: brokerSubsystem,
 		Name:      addsKey,
 		Help:      "Total number of events handled by the queue",
-	}, []string{"name", "type"})
+	}, []string{nameLabel, typeLabel})
 
 	// dispatchedEvents is a prometheus counter metrics which holds the total
 	// number of events generated per resource kind. It has two labels. kind label refers
@@ -61,7 +65,7 @@ var (
 		Name:      dispatchedEventsKey,
 		Help: "Total number of events generated per resource kind destined to subscribers. kind label refers to the " +
 			"resource kind and type label refers to the event type, i.e. create, update, delete, generic",
-	}, []string{"kind", "type"})
+	}, []string{kindLabel, typeLabel})
 )
 
 func init() {

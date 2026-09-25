@@ -1,8 +1,8 @@
 module client_test
 
-go 1.26.0
+go 1.27.0
 
-toolchain go1.26.5
+toolchain go1.27.1
 
 require (
 	github.com/falcosecurity/k8s-metacollector v0.1.3

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 The Falco Authors
+// Copyright 2026 The Falco Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,16 +16,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
 
-	"github.com/falcosecurity/k8s-metacollector/metadata"
 	"google.golang.org/grpc"
+
+	"github.com/falcosecurity/k8s-metacollector/metadata"
 )
 
 var (
@@ -51,17 +52,17 @@ func main() {
 	flag.Parse()
 
 	// Read the content of the json file and obtain an array of events
-	jsonFile, err := os.Open(*testFile)
+	byteValue, err := os.ReadFile(*testFile)
 	if err != nil {
-		log.Fatalf("failed to open json file '%s': %v", *testFile, err)
+		log.Fatalf("failed to read json file '%s': %v", *testFile, err)
 	}
 	server_impl := server{}
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	json.Unmarshal(byteValue, &server_impl.eventArray)
-	jsonFile.Close()
+	if err := json.Unmarshal(byteValue, &server_impl.eventArray); err != nil {
+		log.Fatalf("failed to parse json file '%s': %v", *testFile, err)
+	}
 
 	// Configure the server to listen on the desired port
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	lis, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
