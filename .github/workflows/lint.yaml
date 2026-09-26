@@ -4,8 +4,15 @@ on:
 
 jobs:
   golangci:
-    name: Lint golang files
+    name: Lint golang files (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Each module has its own go.mod, and golangci-lint does not cross module boundaries.
+        module:
+          - .
+          - test/client
+          - test/server
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4.0.0
@@ -17,18 +24,25 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: ${{ matrix.module }}/go.mod
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           only-new-issues: true
           version: v2.14.0
+          working-directory: ${{ matrix.module }}
           args: --timeout=900s
 
   gomodtidy:
-    name: Enforce go.mod tidiness
+    name: Enforce go.mod tidiness (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module:
+          - .
+          - test/client
+          - test/server
 
     steps:
       - name: Checkout
@@ -41,18 +55,17 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: ${{ matrix.module }}/go.mod
 
       - name: Execute go mod tidy and check the outcome
-        working-directory: ./
+        working-directory: ${{ matrix.module }}
         run: |
           go mod tidy
-          exit_code=$(git diff --exit-code)
-          exit ${exit_code}
+          git diff --exit-code -- go.mod go.sum
 
       - name: Print a comment in case of failure
         run: |
-          echo "The go.mod and/or go.sum files appear not to be correctly tidied.
+          echo "The go.mod and/or go.sum files in ${{ matrix.module }} appear not to be correctly tidied.
 
           Please, rerun go mod tidy to fix the issues."
           exit 1
