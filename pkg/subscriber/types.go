@@ -89,7 +89,9 @@ func (gc *Subscribers) HasNode(node string) bool {
 	return ok
 }
 
-// Len returns the number of subscribers.
+// Len returns the number of nodes that have at least one subscriber.
 func (gc *Subscribers) Len() int {
+	gc.rwLock.RLock()
+	defer gc.rwLock.RUnlock()
 	return len(gc.items)
 }
