@@ -32,20 +32,18 @@ import (
 
 // Broker receives events from the collectors and sends them to the subscribers.
 type Broker struct {
-	queue         Queue
-	subscribers   *sync.Map
-	logger        logr.Logger
-	server        *grpc.Server
-	connectionsWg *sync.WaitGroup
-	opt           options
-	eventMetrics  map[string]dispatchedEventsMetrics
+	queue        Queue
+	subscribers  *sync.Map
+	logger       logr.Logger
+	server       *grpc.Server
+	opt          options
+	eventMetrics map[string]dispatchedEventsMetrics
 }
 
 // New returns a new Broker.
 func New(logger logr.Logger, queue Queue, collectors map[string]subscriber.SubsChan, opt ...Option) (*Broker, error) {
 	var grpcServer *grpc.Server
 	subs := &sync.Map{}
-	group := &sync.WaitGroup{}
 
 	// Apply options received from the flags.
 	opts := options{}
@@ -63,13 +61,13 @@ func New(logger logr.Logger, queue Queue, collectors map[string]subscriber.SubsC
 			return nil, err
 		}
 
-		grpcServer = grpc.NewServer(grpc.Creds(creds))
+		grpcServer = grpc.NewServer(grpc.Creds(creds), grpc.WaitForHandlers(true))
 	} else {
-		grpcServer = grpc.NewServer()
+		grpcServer = grpc.NewServer(grpc.WaitForHandlers(true))
 	}
 
 	// Register grpc server.
-	metadata.RegisterMetadataServer(grpcServer, metadata.New(logger.WithName("grpc-server"), subs, collectors, group))
+	metadata.RegisterMetadataServer(grpcServer, metadata.New(logger.WithName("grpc-server"), subs, collectors))
 
 	// Create the metrics for each running collector.
 	// The name of the collector is the resource kind. Same as the kind we find
@@ -80,13 +78,12 @@ func New(logger logr.Logger, queue Queue, collectors map[string]subscriber.SubsC
 	}
 
 	return &Broker{
-		queue:         queue,
-		subscribers:   subs,
-		logger:        logger,
-		server:        grpcServer,
-		connectionsWg: group,
-		opt:           opts,
-		eventMetrics:  eventMetrics,
+		queue:        queue,
+		subscribers:  subs,
+		logger:       logger,
+		server:       grpcServer,
+		opt:          opts,
+		eventMetrics: eventMetrics,
 	}, nil
 }
 
@@ -99,7 +96,8 @@ func (br *Broker) Start(ctx context.Context) error {
 		return fmt.Errorf("an error occurred whil creating listener for grpc server: %w", err)
 	}
 
-	serverError := make(chan error)
+	// Buffered so the Serve goroutine can exit after Stop, when nobody reads the error anymore.
+	serverError := make(chan error, 1)
 	go func() {
 		serverError <- br.server.Serve(lis)
 	}()
@@ -136,8 +134,8 @@ func (br *Broker) Start(ctx context.Context) error {
 	// Wait for the context to be canceled. In that case we gracefully stop the broker.
 	case <-ctx.Done():
 		br.logger.Info("Shutdown signal received, waiting for grpc connections to close")
+		// Stop waits for the Watch handlers to return, so all subscribers are unsubscribed.
 		br.server.Stop()
-		br.connectionsWg.Wait()
 		br.logger.Info("All grpc connections closed")
 		return nil
 	// If the grpc server errors, the error is returned and the manager is stopped causing the application to exit.
