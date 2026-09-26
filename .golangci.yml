@@ -32,7 +32,7 @@ linters:
     - gocyclo
     - godot
     - goheader
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - govet
@@ -180,6 +180,10 @@ linters:
       - linters:
           - goheader
         path: pkg/oci/authn/credentialstore.go
+      # Repeated literals keep test tables readable.
+      - linters:
+          - goconst
+        path: .*_test\.go
       # Relax gosec in tests
       - linters:
           - gosec

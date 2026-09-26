@@ -78,6 +78,10 @@ var _ = BeforeSuite(func(ctx context.Context) {
 
 	// Create the deployer
 	deployer = e2e.NewDeployer("./resources/")
+	// A wrong node name makes every node-filtered list empty, and the specs would pass without checking anything.
+	exists, err := deployer.NodeExists(ctx, GinkgoT(), GinkgoWriter, nodeName)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(exists).To(BeTrue(), "node %q set in %s does not exist", nodeName, e2e.NodeNameEnv)
 	// Deploy all resources.
 	Expect(deployer.DeployAll(ctx, GinkgoT(), GinkgoWriter, mainNamespace, 6)).NotTo(HaveOccurred())
 }, NodeTimeout(time.Minute*1))
