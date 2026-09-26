@@ -51,8 +51,11 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: fmt vet envtest ## Run unit tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $(shell go list ./... | grep -v /test/e2e | grep -v /chart/) -coverprofile cover.out
+test: fmt vet unit-test ## Format, vet and run unit tests.
+
+.PHONY: unit-test
+unit-test: envtest ## Run unit tests with the race detector.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -race $(shell go list ./... | grep -v /test/e2e | grep -v /chart/) -coverprofile cover.out
 
 .PHONY: chart-lint
 chart-lint: ## Lint the Helm chart.
