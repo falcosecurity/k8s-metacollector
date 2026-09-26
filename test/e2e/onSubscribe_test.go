@@ -17,238 +17,162 @@ package e2e_test
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/falcosecurity/k8s-metacollector/pkg/events"
 	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 	"github.com/falcosecurity/k8s-metacollector/test/e2e"
 )
 
-var _ = Describe("Clients on subscribe", func() {
-	var (
-		client     e2e.Client
-		brokerPort = "45000"
-		cancel     context.CancelFunc
-	)
+// expectedObject is a resource for which the subscriber is expected to receive an event.
+type expectedObject struct {
+	meta *metav1.ObjectMeta
+	// podStatus is set only for pods, the only resource whose status is sent to subscribers.
+	podStatus *corev1.PodStatus
+}
 
-	JustBeforeEach(func(ctx context.Context) {
-		var derivedCtx context.Context
-		derivedCtx, cancel = context.WithCancel(ctx)
-		Expect(client.Watch(derivedCtx)).NotTo(HaveOccurred())
-	})
+// lister returns the resources related to the given node.
+type lister func(ctx context.Context, node string) ([]expectedObject, error)
+
+// toExpected converts a list of resources to the objects expected by the subscriber.
+func toExpected[T any](items []T, err error, meta func(*T) *metav1.ObjectMeta) ([]expectedObject, error) {
+	if err != nil {
+		return nil, err
+	}
+	objs := make([]expectedObject, 0, len(items))
+	for i := range items {
+		objs = append(objs, expectedObject{meta: meta(&items[i])})
+	}
+	return objs, nil
+}
+
+var (
+	listPods lister = func(ctx context.Context, node string) ([]expectedObject, error) {
+		pods, err := deployer.ListPods(ctx, GinkgoT(), GinkgoWriter, node)
+		if err != nil {
+			return nil, err
+		}
+		objs := make([]expectedObject, 0, len(pods))
+		for i := range pods {
+			objs = append(objs, expectedObject{meta: &pods[i].ObjectMeta, podStatus: &pods[i].Status})
+		}
+		return objs, nil
+	}
+	listDeployments lister = func(ctx context.Context, node string) ([]expectedObject, error) {
+		items, err := deployer.ListDeployments(ctx, GinkgoT(), GinkgoWriter, node)
+		return toExpected(items, err, func(o *appsv1.Deployment) *metav1.ObjectMeta { return &o.ObjectMeta })
+	}
+	listReplicaSets lister = func(ctx context.Context, node string) ([]expectedObject, error) {
+		items, err := deployer.ListReplicaSets(ctx, GinkgoT(), GinkgoWriter, node)
+		return toExpected(items, err, func(o *appsv1.ReplicaSet) *metav1.ObjectMeta { return &o.ObjectMeta })
+	}
+	listReplicationControllers lister = func(ctx context.Context, node string) ([]expectedObject, error) {
+		items, err := deployer.ListReplicationControllers(ctx, GinkgoT(), GinkgoWriter, node)
+		return toExpected(items, err, func(o *corev1.ReplicationController) *metav1.ObjectMeta { return &o.ObjectMeta })
+	}
+	listDaemonSets lister = func(ctx context.Context, node string) ([]expectedObject, error) {
+		items, err := deployer.ListDaemonsets(ctx, GinkgoT(), GinkgoWriter, node)
+		return toExpected(items, err, func(o *appsv1.DaemonSet) *metav1.ObjectMeta { return &o.ObjectMeta })
+	}
+	listServices lister = func(ctx context.Context, node string) ([]expectedObject, error) {
+		items, err := deployer.ListServices(ctx, GinkgoT(), GinkgoWriter, node)
+		return toExpected(items, err, func(o *corev1.Service) *metav1.ObjectMeta { return &o.ObjectMeta })
+	}
+	listNamespaces lister = func(ctx context.Context, node string) ([]expectedObject, error) {
+		items, err := deployer.ListNamespaces(ctx, GinkgoT(), GinkgoWriter, node)
+		return toExpected(items, err, func(o *corev1.Namespace) *metav1.ObjectMeta { return &o.ObjectMeta })
+	}
+)
+
+// subscribe creates a client for the given node and starts watching. The subscription lives until the
+// end of the spec: it must not use the context of the setup node, which Ginkgo cancels when the node returns.
+func subscribe(node string) *e2e.Client {
+	client, err := e2e.NewClient(node, "45000")
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(client.Close)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	DeferCleanup(cancel)
+	Expect(client.Watch(ctx)).To(Succeed())
+
+	return &client
+}
+
+var _ = Describe("Clients on subscribe", func() {
+	var client *e2e.Client
 
 	Describe("Subscribe a new client", func() {
 		BeforeEach(func() {
-			var err error
-			client, err = e2e.NewClient(nodeName, brokerPort)
-			Expect(err).NotTo(HaveOccurred())
+			client = subscribe(nodeName)
 		})
 
-		AfterEach(func() {
-			fmt.Println("stopping client")
-			cancel()
-		})
-		It("Should get events for all pods running on node", func(ctx SpecContext) {
-			pods, err := deployer.ListPods(ctx, GinkgoT(), GinkgoWriter, nodeName)
-			Expect(err).NotTo(HaveOccurred())
-			// Check that for each retrieved pod we received a create event from the collector.
-			for _, pod := range pods {
-				Eventually(func(g Gomega) bool {
-					evt, ok := client.Get(string(pod.UID))
-					if !ok {
-						return false
+		DescribeTable("Should get a create event for each resource related to the node",
+			func(ctx SpecContext, kind string, list lister) {
+				objs, err := list(ctx, nodeName)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(objs).NotTo(BeEmpty(), "no %s found for node %q", kind, nodeName)
+
+				for _, obj := range objs {
+					wantMeta, err := e2e.MetaToString(obj.meta.DeepCopy())
+					Expect(err).NotTo(HaveOccurred())
+					var wantStatus string
+					if obj.podStatus != nil {
+						wantStatus, err = e2e.PodStatusToString(obj.podStatus)
+						Expect(err).NotTo(HaveOccurred())
 					}
-					Expect(evt.Reason).To(Equal("Create"))
-					metaString, err := e2e.MetaToString(&pod.ObjectMeta)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Meta).To(Equal(metaString))
-					statusString, err := e2e.PodStatusToString(&pod.Status)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Status).To(Equal(statusString))
-					fmt.Println(evt.String())
-					return true
-				}).WithContext(ctx).Should(BeTrue())
 
-				Consistently(func() bool {
-					n := client.NumMessagesForKind(resource.Pod)
-					return len(pods) == n
+					Eventually(func(g Gomega) {
+						evt, ok := client.Get(string(obj.meta.UID))
+						g.Expect(ok).To(BeTrue(), "no event received for %s %s/%s", kind, obj.meta.Namespace, obj.meta.Name)
+						g.Expect(evt.GetReason()).To(Equal(events.Create))
+						g.Expect(evt.GetKind()).To(Equal(kind))
+						g.Expect(evt.GetMeta()).To(Equal(wantMeta))
+						if obj.podStatus != nil {
+							g.Expect(evt.GetStatus()).To(Equal(wantStatus))
+						}
+					}).WithContext(ctx).Should(Succeed())
+				}
 
-				}, time.Second*3, time.Second).WithContext(ctx).Should(BeTrue())
-			}
-
-		}, SpecTimeout(time.Minute*2))
-
-		It("Should get events for all deployments related to node", func(ctx SpecContext) {
-			deployments, err := deployer.ListDeployments(ctx, GinkgoT(), GinkgoWriter, nodeName)
-			Expect(err).NotTo(HaveOccurred())
-
-			for _, dpl := range deployments {
-				Eventually(func(g Gomega) bool {
-					evt, ok := client.Get(string(dpl.UID))
-					if !ok {
-						return false
+				// No events for resources unrelated to the node.
+				expected := make(map[string]struct{}, len(objs))
+				for _, obj := range objs {
+					expected[string(obj.meta.UID)] = struct{}{}
+				}
+				Consistently(func() []string {
+					var unexpected []string
+					for _, evt := range client.EventsForKind(kind) {
+						if _, ok := expected[evt.GetUid()]; !ok {
+							unexpected = append(unexpected, evt.GetReason()+" "+evt.GetMeta())
+						}
 					}
-					Expect(evt.Reason).To(Equal("Create"))
-					metaString, err := e2e.MetaToString(&dpl.ObjectMeta)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Meta).To(Equal(metaString))
-					fmt.Println(evt.String())
-					return true
-				}).WithContext(ctx).Should(BeTrue())
-
-				Consistently(func() bool {
-					n := client.NumMessagesForKind(resource.Deployment)
-					return len(deployments) == n
-				}, time.Second*3, time.Second).WithContext(ctx).Should(BeTrue())
-			}
-		}, SpecTimeout(time.Minute*2))
-
-		It("Should get events for all replicasets related to node", func(ctx SpecContext) {
-			replicasets, err := deployer.ListReplicaSets(ctx, GinkgoT(), GinkgoWriter, nodeName)
-			Expect(err).NotTo(HaveOccurred())
-
-			for _, rs := range replicasets {
-				Eventually(func(g Gomega) bool {
-					evt, ok := client.Get(string(rs.UID))
-					if !ok {
-						return false
-					}
-					Expect(evt.Reason).To(Equal("Create"))
-					metaString, err := e2e.MetaToString(&rs.ObjectMeta)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Meta).To(Equal(metaString))
-					fmt.Println(evt.String())
-					return true
-				}).WithContext(ctx).Should(BeTrue())
-
-				Consistently(func() bool {
-					n := client.NumMessagesForKind(resource.ReplicaSet)
-					return len(replicasets) == n
-				}, time.Second*3, time.Second).WithContext(ctx).Should(BeTrue())
-			}
-		}, SpecTimeout(time.Minute*2))
-
-		It("Should get events for all replication controllers related to node", func(ctx SpecContext) {
-			rcs, err := deployer.ListReplicationControllers(ctx, GinkgoT(), GinkgoWriter, nodeName)
-			Expect(err).NotTo(HaveOccurred())
-
-			for _, rc := range rcs {
-				Eventually(func(g Gomega) bool {
-					evt, ok := client.Get(string(rc.UID))
-					if !ok {
-						return false
-					}
-					Expect(evt.Reason).To(Equal("Create"))
-					metaString, err := e2e.MetaToString(&rc.ObjectMeta)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Meta).To(Equal(metaString))
-					fmt.Println(evt.String())
-					return true
-				}).WithContext(ctx).Should(BeTrue())
-
-				Consistently(func() bool {
-					n := client.NumMessagesForKind(resource.ReplicationController)
-					return len(rcs) == n
-				}, time.Second*3, time.Second).WithContext(ctx).Should(BeTrue())
-			}
-		}, SpecTimeout(time.Minute*2))
-
-		It("Should get events for all daemonsets related to node", func(ctx SpecContext) {
-			daemonsets, err := deployer.ListDaemonsets(ctx, GinkgoT(), GinkgoWriter, nodeName)
-			Expect(err).NotTo(HaveOccurred())
-
-			for _, ds := range daemonsets {
-				Eventually(func(g Gomega) bool {
-					evt, ok := client.Get(string(ds.UID))
-					if !ok {
-						return false
-					}
-					Expect(evt.Reason).To(Equal("Create"))
-					metaString, err := e2e.MetaToString(&ds.ObjectMeta)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Meta).To(Equal(metaString))
-					fmt.Println(evt.String())
-					return true
-				}).WithContext(ctx).Should(BeTrue())
-
-				Consistently(func() bool {
-					n := client.NumMessagesForKind(resource.Daemonset)
-					return len(daemonsets) == n
-				}, time.Second*3, time.Second).WithContext(ctx).Should(BeTrue())
-			}
-		}, SpecTimeout(time.Minute*2))
-
-		It("Should get events for all services related to node", func(ctx SpecContext) {
-			services, err := deployer.ListServices(ctx, GinkgoT(), GinkgoWriter, nodeName)
-			Expect(err).NotTo(HaveOccurred())
-
-			for _, svc := range services {
-				Eventually(func(g Gomega) bool {
-					evt, ok := client.Get(string(svc.UID))
-					if !ok {
-						return false
-					}
-					Expect(evt.Reason).To(Equal("Create"))
-					metaString, err := e2e.MetaToString(&svc.ObjectMeta)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Meta).To(Equal(metaString))
-					fmt.Println(evt.String())
-					return true
-				}).WithContext(ctx).Should(BeTrue())
-
-				Consistently(func() bool {
-					n := client.NumMessagesForKind(resource.Service)
-					return len(services) == n
-				}, time.Second*3, time.Second).WithContext(ctx).Should(BeTrue())
-			}
-		}, SpecTimeout(time.Minute*2))
-
-		It("Should get events for all namespaces related to node", func(ctx SpecContext) {
-			namespaces, err := deployer.ListNamespaces(ctx, GinkgoT(), GinkgoWriter, nodeName)
-			Expect(err).NotTo(HaveOccurred())
-
-			for _, ns := range namespaces {
-				Eventually(func(g Gomega) bool {
-					evt, ok := client.Get(string(ns.UID))
-					if !ok {
-						return false
-					}
-					Expect(evt.Reason).To(Equal("Create"))
-					metaString, err := e2e.MetaToString(&ns.ObjectMeta)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(*evt.Meta).To(Equal(metaString))
-					fmt.Println(evt.String())
-					return true
-				}).WithContext(ctx).Should(BeTrue())
-
-				Consistently(func() bool {
-					n := client.NumMessagesForKind(resource.Namespace)
-					return len(namespaces) == n
-				}, time.Second*3, time.Second).WithContext(ctx).Should(BeTrue())
-			}
-		}, SpecTimeout(time.Minute*2))
+					return unexpected
+				}, 3*time.Second, time.Second).WithContext(ctx).Should(BeEmpty(), "events for %s not related to node %q", kind, nodeName)
+			},
+			Entry("pods", resource.Pod, listPods, SpecTimeout(2*time.Minute)),
+			Entry("deployments", resource.Deployment, listDeployments, SpecTimeout(2*time.Minute)),
+			Entry("replicasets", resource.ReplicaSet, listReplicaSets, SpecTimeout(2*time.Minute)),
+			Entry("replication controllers", resource.ReplicationController, listReplicationControllers, SpecTimeout(2*time.Minute)),
+			Entry("daemonsets", resource.Daemonset, listDaemonSets, SpecTimeout(2*time.Minute)),
+			Entry("services", resource.Service, listServices, SpecTimeout(2*time.Minute)),
+			Entry("namespaces", resource.Namespace, listNamespaces, SpecTimeout(2*time.Minute)),
+		)
 	})
 
 	Describe("Subscribe a new client for non existing node", func() {
 		BeforeEach(func() {
-			var err error
-			client, err = e2e.NewClient("no-node-exists", brokerPort)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			cancel()
+			client = subscribe("no-node-exists")
 		})
 
 		It("Should not receive events at all", func(ctx SpecContext) {
-			Consistently(func() bool {
-				n := client.NumMessages()
-				return n == 0
-			}, time.Second*5, time.Second).WithContext(ctx).Should(BeTrue())
-
+			Consistently(func() int {
+				return client.NumMessages()
+			}, 5*time.Second, time.Second).WithContext(ctx).Should(BeZero())
 		}, SpecTimeout(time.Minute))
 	})
 })

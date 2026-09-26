@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 )
 
 // Deployer knows how to deploy resources.
@@ -105,6 +106,18 @@ func (dpl *Deployer) ListPods(ctx context.Context, t testing.TestingT, writer io
 	return pods, nil
 }
 
+// NodeExists returns true if a node with the given name exists in the cluster.
+func (dpl *Deployer) NodeExists(ctx context.Context, t testing.TestingT, writer io.Writer, node string) (bool, error) {
+	opt := &k8s.KubectlOptions{Logger: logger.New(NewLogger(writer))}
+
+	nodes, err := k8s.GetNodesByFilterContextE(t, ctx, opt, metav1.ListOptions{FieldSelector: "metadata.name=" + node})
+	if err != nil {
+		return false, err
+	}
+
+	return len(nodes) == 1, nil
+}
+
 // ListNamespaces returns all the namespaces related to the given node.
 func (dpl *Deployer) ListNamespaces(ctx context.Context, t testing.TestingT, writer io.Writer, node string) ([]corev1.Namespace, error) {
 	var namespaces []corev1.Namespace
@@ -146,7 +159,7 @@ func (dpl *Deployer) ListReplicaSets(ctx context.Context, t testing.TestingT, wr
 	for i := range pods {
 		// Get owner.
 		owner := events.ManagingOwner(pods[i].OwnerReferences)
-		if owner != nil && owner.Kind == "ReplicaSet" {
+		if owner != nil && owner.Kind == resource.ReplicaSet {
 			opt.Namespace = pods[i].Namespace
 			// Get the replica set.
 			rs, err := k8s.GetReplicaSetContextE(t, ctx, opt, owner.Name)
@@ -180,7 +193,7 @@ func (dpl *Deployer) ListDeployments(ctx context.Context, t testing.TestingT, wr
 	for i := range replicasets {
 		// Get owner.
 		owner := events.ManagingOwner(replicasets[i].OwnerReferences)
-		if owner != nil && owner.Kind == "Deployment" {
+		if owner != nil && owner.Kind == resource.Deployment {
 			opt.Namespace = replicasets[i].Namespace
 			// Get the deployment.
 			d, err := k8s.GetDeploymentContextE(t, ctx, opt, owner.Name)
@@ -215,7 +228,7 @@ func (dpl *Deployer) ListReplicationControllers(ctx context.Context, t testing.T
 	for i := range pods {
 		// Get owner.
 		owner := events.ManagingOwner(pods[i].OwnerReferences)
-		if owner != nil && owner.Kind == "ReplicationController" {
+		if owner != nil && owner.Kind == resource.ReplicationController {
 			opt.Namespace = pods[i].Namespace
 			clientset, err := k8s.GetKubernetesClientFromOptionsContextE(t, ctx, opt)
 			if err != nil {
@@ -252,7 +265,7 @@ func (dpl *Deployer) ListDaemonsets(ctx context.Context, t testing.TestingT, wri
 	for i := range pods {
 		// Get owner.
 		owner := events.ManagingOwner(pods[i].OwnerReferences)
-		if owner != nil && owner.Kind == "Daemonset" {
+		if owner != nil && owner.Kind == resource.Daemonset {
 			opt.Namespace = pods[i].Namespace
 			ds, err := k8s.GetDaemonSetContextE(t, ctx, opt, owner.Name)
 			if err != nil {
