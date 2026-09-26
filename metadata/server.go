@@ -45,19 +45,17 @@ func (c *Connection) Close(err error) {
 type Server struct {
 	UnimplementedMetadataServer
 	// Subs are stored using as key the UID and values the connection.
-	subscribers   *sync.Map
-	logger        logr.Logger
-	collectors    map[string]subscriber.SubsChan
-	connectionsWg *sync.WaitGroup
+	subscribers *sync.Map
+	logger      logr.Logger
+	collectors  map[string]subscriber.SubsChan
 }
 
 // New returns a new Server.
-func New(logger logr.Logger, subs *sync.Map, collectors map[string]subscriber.SubsChan, group *sync.WaitGroup) *Server {
+func New(logger logr.Logger, subs *sync.Map, collectors map[string]subscriber.SubsChan) *Server {
 	return &Server{
-		subscribers:   subs,
-		logger:        logger,
-		collectors:    collectors,
-		connectionsWg: group,
+		subscribers: subs,
+		logger:      logger,
+		collectors:  collectors,
 	}
 }
 
@@ -93,11 +91,6 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 			collector <- msg
 		}
 	}
-
-	// Add the connection to waiting group.
-	s.connectionsWg.Add(1)
-	// At exit time remove the connection from the waiting group.
-	defer s.connectionsWg.Done()
 
 	select {
 	case <-stream.Context().Done():
