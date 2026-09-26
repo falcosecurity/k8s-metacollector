@@ -60,6 +60,20 @@ func (m *message) NumMessagesForKind(kind string) int {
 	return num
 }
 
+// EventsForKind returns the latest event received for each resource of the given kind.
+func (m *message) EventsForKind(kind string) []*metadata.Event {
+	m.rwLock.RLock()
+	defer m.rwLock.RUnlock()
+	var evts []*metadata.Event
+	for _, val := range m.grpcEvents {
+		if val.Kind == kind {
+			evts = append(evts, val)
+		}
+	}
+
+	return evts
+}
+
 func (m *message) NumMessages() int {
 	m.rwLock.RLock()
 	defer m.rwLock.RUnlock()
@@ -93,6 +107,11 @@ func NewClient(nodeName, port string) (Client, error) {
 		metaClient: metaClient,
 		connection: conn,
 	}, nil
+}
+
+// Close closes the connection to the collector.
+func (c *Client) Close() error {
+	return c.connection.Close()
 }
 
 // Watch subscribes to the collector.
