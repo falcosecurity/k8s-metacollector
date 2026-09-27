@@ -3,7 +3,7 @@ kind: ReplicaSet
 metadata:
   name: frontend
   labels:
-    app: nginx
+    app: nginx-rs
     tier: frontend
 spec:
   replicas: 1

@@ -82,9 +82,10 @@ var _ = BeforeSuite(func(ctx context.Context) {
 	exists, err := deployer.NodeExists(ctx, GinkgoT(), GinkgoWriter, nodeName)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(exists).To(BeTrue(), "node %q set in %s does not exist", nodeName, e2e.NodeNameEnv)
-	// Deploy all resources.
-	Expect(deployer.DeployAll(ctx, GinkgoT(), GinkgoWriter, mainNamespace, 6)).NotTo(HaveOccurred())
-}, NodeTimeout(time.Minute*1))
+	// Deploy all resources. They create 8 pods: 1 pod, 2 for the deployment, 1 for the replicaset,
+	// 3 for the replication controller and 1 for the daemonset on the single node.
+	Expect(deployer.DeployAll(ctx, GinkgoT(), GinkgoWriter, mainNamespace, 8)).NotTo(HaveOccurred())
+}, NodeTimeout(time.Minute*3))
 
 var _ = AfterSuite(func(ctx context.Context) {
 	// Remove all deployed resources.
