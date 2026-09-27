@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -30,14 +31,25 @@ import (
 )
 
 type message struct {
+	// grpcEvents holds the latest event received for each resource.
 	grpcEvents map[string]*metadata.Event
-	rwLock     sync.RWMutex
+	// history holds all the events received for each resource, in order.
+	history map[string][]*metadata.Event
+	rwLock  sync.RWMutex
 }
 
 func (m *message) Add(item *metadata.Event) {
 	m.rwLock.Lock()
 	defer m.rwLock.Unlock()
 	m.grpcEvents[item.Uid] = item
+	m.history[item.Uid] = append(m.history[item.Uid], item)
+}
+
+// History returns all the events received for the resource with the given UID, in order.
+func (m *message) History(uid string) []*metadata.Event {
+	m.rwLock.RLock()
+	defer m.rwLock.RUnlock()
+	return slices.Clone(m.history[uid])
 }
 
 func (m *message) Get(uid string) (*metadata.Event, bool) {
@@ -103,6 +115,7 @@ func NewClient(nodeName, port string) (Client, error) {
 	return Client{
 		nodeName:   nodeName,
 		grpcEvents: map[string]*metadata.Event{},
+		history:    map[string][]*metadata.Event{},
 		rwLock:     sync.RWMutex{},
 		metaClient: metaClient,
 		connection: conn,
