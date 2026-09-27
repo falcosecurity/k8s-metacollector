@@ -42,7 +42,7 @@ func startServer(t *testing.T, collectors map[string]subscriber.SubsChan) (Metad
 	subs := &sync.Map{}
 
 	srv := grpc.NewServer()
-	RegisterMetadataServer(srv, New(logr.Discard(), subs, collectors))
+	RegisterMetadataServer(srv, New(logr.Discard(), subs, collectors, make(chan struct{})))
 	go func() {
 		_ = srv.Serve(lis)
 	}()

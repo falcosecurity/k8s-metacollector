@@ -38,6 +38,8 @@ type Broker struct {
 	server       *grpc.Server
 	opt          options
 	eventMetrics map[string]dispatchedEventsMetrics
+	// stopping is closed on shutdown, so the Watch handlers stop waiting for the collectors.
+	stopping chan struct{}
 }
 
 // New returns a new Broker.
@@ -67,7 +69,8 @@ func New(logger logr.Logger, queue Queue, collectors map[string]subscriber.SubsC
 	}
 
 	// Register grpc server.
-	metadata.RegisterMetadataServer(grpcServer, metadata.New(logger.WithName("grpc-server"), subs, collectors))
+	stopping := make(chan struct{})
+	metadata.RegisterMetadataServer(grpcServer, metadata.New(logger.WithName("grpc-server"), subs, collectors, stopping))
 
 	// Create the metrics for each running collector.
 	// The name of the collector is the resource kind. Same as the kind we find
@@ -84,6 +87,7 @@ func New(logger logr.Logger, queue Queue, collectors map[string]subscriber.SubsC
 		server:       grpcServer,
 		opt:          opts,
 		eventMetrics: eventMetrics,
+		stopping:     stopping,
 	}, nil
 }
 
@@ -134,7 +138,9 @@ func (br *Broker) Start(ctx context.Context) error {
 	// Wait for the context to be canceled. In that case we gracefully stop the broker.
 	case <-ctx.Done():
 		br.logger.Info("Shutdown signal received, waiting for grpc connections to close")
-		// Stop waits for the Watch handlers to return, so all subscribers are unsubscribed.
+		// The collectors stop reading the subscribers' messages on shutdown: do not let the Watch handlers wait for them.
+		close(br.stopping)
+		// Stop waits for the Watch handlers to return.
 		br.server.Stop()
 		br.logger.Info("All grpc connections closed")
 		return nil

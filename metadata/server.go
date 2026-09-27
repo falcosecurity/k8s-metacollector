@@ -48,14 +48,33 @@ type Server struct {
 	subscribers *sync.Map
 	logger      logr.Logger
 	collectors  map[string]subscriber.SubsChan
+	// stopping is closed when the server is shutting down.
+	stopping <-chan struct{}
 }
 
-// New returns a new Server.
-func New(logger logr.Logger, subs *sync.Map, collectors map[string]subscriber.SubsChan) *Server {
+// New returns a new Server. The stopping channel must be closed when the server is shutting down.
+func New(logger logr.Logger, subs *sync.Map, collectors map[string]subscriber.SubsChan, stopping <-chan struct{}) *Server {
 	return &Server{
 		subscribers: subs,
 		logger:      logger,
 		collectors:  collectors,
+		stopping:    stopping,
+	}
+}
+
+// notifyCollectors sends the message to the collectors of the selected resource kinds.
+// On shutdown the collectors stop reading the messages, so it gives up instead of blocking forever.
+func (s *Server) notifyCollectors(kinds map[string]string, msg subscriber.Message) {
+	for resource := range kinds {
+		collector, ok := s.collectors[resource]
+		if !ok {
+			continue
+		}
+		select {
+		case collector <- msg:
+		case <-s.stopping:
+			return
+		}
 	}
 }
 
@@ -86,11 +105,7 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 	s.subscribers.Store(UID, connection)
 	subscribers.Inc()
 	s.logger.Info("starting initial event sync", "node", selector.NodeName, "subscriber UID", UID)
-	for resource := range selector.ResourceKinds {
-		if collector, ok := s.collectors[resource]; ok {
-			collector <- msg
-		}
-	}
+	s.notifyCollectors(selector.ResourceKinds, msg)
 
 	select {
 	case <-stream.Context().Done():
@@ -102,11 +117,7 @@ func (s *Server) Watch(selector *Selector, stream Metadata_WatchServer) error {
 	// Unsubscribe from all the collectors.
 	s.subscribers.Delete(UID)
 	msg.Reason = subscriber.Unsubscribed
-	for resource := range selector.ResourceKinds {
-		if collector, ok := s.collectors[resource]; ok {
-			collector <- msg
-		}
-	}
+	s.notifyCollectors(selector.ResourceKinds, msg)
 	s.logger.Info("stream deleted", "subscriber", selector.NodeName)
 	subscribers.Dec()
 	return err
