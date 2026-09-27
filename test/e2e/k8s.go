@@ -50,7 +50,8 @@ func NewDeployer(resourcePath string) Deployer {
 	}
 }
 
-// DeployAll deploys all resources and waits until the expected pods are running.
+// DeployAll deploys all resources and waits until exactly the expected number of pods exists and all of them are available.
+// The expected number must match the pods created by the resources: the wait returns as soon as the count matches.
 func (dpl *Deployer) DeployAll(ctx context.Context, t testing.TestingT, writer io.Writer, namespace string, expectedPods int) error {
 	log := logger.New(NewLogger(writer))
 	// We use it to clean up at the end.
@@ -67,7 +68,22 @@ func (dpl *Deployer) DeployAll(ctx context.Context, t testing.TestingT, writer i
 		return err
 	}
 
-	return k8s.WaitUntilNumPodsCreatedContextE(t, ctx, kubectlOptions, metav1.ListOptions{}, expectedPods, 10, time.Second*5)
+	if err := k8s.WaitUntilNumPodsCreatedContextE(t, ctx, kubectlOptions, metav1.ListOptions{}, expectedPods, 10, time.Second*5); err != nil {
+		return err
+	}
+
+	// Wait for the pods to be available, so their status (e.g. the pod IP) no longer changes.
+	pods, err := k8s.ListPodsContextE(t, ctx, kubectlOptions, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for i := range pods {
+		if err := k8s.WaitUntilPodAvailableContextE(t, ctx, kubectlOptions, pods[i].Name, 30, time.Second*2); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // CleanUp removes all resources previously deployed.
