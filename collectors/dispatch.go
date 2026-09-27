@@ -42,7 +42,17 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 	// it listens for new getSubscribers and sends the cached events to the
 	// subscriber received on the channel.
 	dispatchEventsOnSubscribe := func(ctx context.Context) {
-		wg.Add(1)
+		defer wg.Done()
+		// send enqueues a reconcile request for the object. It returns false on shutdown, when the
+		// controller no longer reads the requests and a send could block forever.
+		send := func(obj client.Object) bool {
+			select {
+			case dispatcherChan <- event.GenericEvent{Object: obj}:
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
 		for {
 			select {
 			case sub := <-subChan:
@@ -59,43 +69,55 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 				if err := cl.List(ctx, podList, client.MatchingFields{
 					nodeNameIndex: sub.NodeName,
 				}); err != nil {
+					// Do not dispatch the pods left in the list by the previous subscriber.
 					logger.Error(err, "unable to dispatch pod events", "subscriber", sub, "resourceKind", resourceKind)
+					continue
 				}
 
 				for podIndex := range podList.Items {
 					switch resourceKind {
 					case resource.Pod:
-						dispatcherChan <- event.GenericEvent{Object: &corev1.Pod{
+						if !send(&corev1.Pod{
 							Name:      podList.Items[podIndex].Name,
 							Namespace: podList.Items[podIndex].Namespace,
-						}}
+						}) {
+							return
+						}
 					case resource.Namespace:
-						dispatcherChan <- event.GenericEvent{Object: &corev1.Namespace{
+						if !send(&corev1.Namespace{
 							Name: podList.Items[podIndex].Namespace,
-						}}
+						}) {
+							return
+						}
 					case resource.ReplicaSet:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner != nil && owner.Kind == resource.ReplicaSet {
-							dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
+							if !send(&appsv1.ReplicaSet{
 								Name:      owner.Name,
 								Namespace: podList.Items[podIndex].Namespace,
-							}}
+							}) {
+								return
+							}
 						}
 					case resource.ReplicationController:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner != nil && owner.Kind == resource.ReplicationController {
-							dispatcherChan <- event.GenericEvent{Object: &corev1.ReplicationController{
+							if !send(&corev1.ReplicationController{
 								Name:      owner.Name,
 								Namespace: podList.Items[podIndex].Namespace,
-							}}
+							}) {
+								return
+							}
 						}
 					case resource.Daemonset:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
 						if owner != nil && owner.Kind == resource.Daemonset {
-							dispatcherChan <- event.GenericEvent{Object: &appsv1.DaemonSet{
+							if !send(&appsv1.DaemonSet{
 								Name:      owner.Name,
 								Namespace: podList.Items[podIndex].Namespace,
-							}}
+							}) {
+								return
+							}
 						}
 					case resource.Deployment:
 						owner := events.ManagingOwner(podList.Items[podIndex].OwnerReferences)
@@ -110,10 +132,12 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 							}
 							owner = events.ManagingOwner(replicaSet.OwnerReferences)
 							if owner != nil && owner.Kind == resource.Deployment {
-								dispatcherChan <- event.GenericEvent{Object: &appsv1.ReplicaSet{
+								if !send(&appsv1.ReplicaSet{
 									Name:      owner.Name,
 									Namespace: podList.Items[podIndex].Namespace,
-								}}
+								}) {
+									return
+								}
 							}
 						}
 					case resource.Service:
@@ -125,10 +149,12 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 						for svcIndex := range serviceList.Items {
 							sel := labels.SelectorFromValidatedSet(serviceList.Items[svcIndex].Spec.Selector)
 							if !sel.Empty() && sel.Matches(labels.Set(podList.Items[podIndex].GetLabels())) {
-								dispatcherChan <- event.GenericEvent{Object: &corev1.Service{
+								if !send(&corev1.Service{
 									Name:      serviceList.Items[svcIndex].Name,
 									Namespace: podList.Items[podIndex].Namespace,
-								}}
+								}) {
+									return
+								}
 							}
 						}
 					}
@@ -136,17 +162,9 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 				logger.V(2).Info("events correctly dispatched", "subscriber", sub, "resourceKind", resourceKind)
 
 			case <-ctx.Done():
+				// No need to wait for the subscribers to unsubscribe: on shutdown the grpc server
+				// stops notifying the collectors about them.
 				logger.V(2).Info("stopping dispatcher on new subscribers", "resourceKind", resourceKind)
-				// Before exiting we need to wait for all the clients to close their connections.
-				for subscribers.Len() > 0 {
-					sub := <-subChan
-					if sub.Reason == subscriber.Unsubscribed {
-						// Delete the subscriber for the given node.
-						subscribers.DeleteSubscriberPerNode(sub.NodeName, sub.UID)
-						logger.V(2).Info("connection closed", "subscriberName", sub.NodeName, "subscriberUID", sub.UID)
-					}
-				}
-				wg.Done()
 				return
 			}
 		}
@@ -154,6 +172,7 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 
 	logger.Info("starting event dispatcher for new subscribers", "resourceKind", resourceKind)
 	// Start the dispatcher.
+	wg.Add(1)
 	go dispatchEventsOnSubscribe(ctx)
 
 	// Wait for shutdown signal.

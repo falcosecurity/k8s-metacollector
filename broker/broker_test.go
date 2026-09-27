@@ -258,13 +258,42 @@ func TestBrokerShutdownWithConnectedSubscribers(t *testing.T) {
 		require.FailNow(t, "broker did not stop")
 	}
 
-	// The broker closed the streams and unsubscribed them from the collectors.
+	// The broker closed the streams. The collectors are shutting down too, so notifying them
+	// about the closed streams is not required.
 	for _, stream := range []metadata.Metadata_WatchClient{stream1, stream2} {
 		_, err := stream.Recv()
 		require.Error(t, err)
 	}
-	for range 2 {
-		msg := <-collectorChan
-		require.Equal(t, subscriber.Unsubscribed, msg.Reason)
+}
+
+func TestBrokerShutdownWhenCollectorsStopReading(t *testing.T) {
+	t.Parallel()
+
+	const kind = "TestBrokerStopReadingKind"
+	// Unbuffered, as in the run command: once the collector stops reading, sends block.
+	collectorChan := make(subscriber.SubsChan)
+	addr := freeAddr(t)
+
+	br, err := New(logr.Discard(), NewBlockingChannel(1), map[string]subscriber.SubsChan{kind: collectorChan}, WithAddress(addr))
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	startErr := make(chan error, 1)
+	go func() {
+		startErr <- br.Start(ctx)
+	}()
+
+	watch(t, t.Context(), addr, "node-1", kind)
+	subscriberUIDs(t, collectorChan, 1)
+
+	// The collector stops reading, as the dispatcher does on shutdown once it has no subscribers left.
+	// The Watch handler must not block the broker shutdown while trying to unsubscribe.
+	cancel()
+	select {
+	case err := <-startErr:
+		require.NoError(t, err)
+	case <-time.After(timeout):
+		require.FailNow(t, "broker did not stop")
 	}
 }
