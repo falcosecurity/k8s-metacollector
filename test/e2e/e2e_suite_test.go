@@ -17,6 +17,7 @@ package e2e_test
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -38,6 +39,8 @@ var (
 	collectorMainSession *gexec.Session
 	deployer             e2e.Deployer
 	mainNamespace        = "nginx-test"
+	// collectorLogFile keeps the output of the main collector, which Ginkgo shows only for failed nodes.
+	collectorLogFile = "collector.log"
 )
 
 func TestE2E(t *testing.T) {
@@ -63,8 +66,12 @@ var _ = BeforeSuite(func(ctx context.Context) {
 	DeferCleanup(gexec.CleanupBuildArtifacts)
 
 	// Start the collector.
+	logFile, err := os.Create(collectorLogFile)
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(logFile.Close)
+	out := io.MultiWriter(GinkgoWriter, logFile)
 	cmd := exec.Command(k8sMetaCollectorBin, "run")
-	collectorMainSession, err = gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+	collectorMainSession, err = gexec.Start(cmd, out, out)
 	Expect(err).NotTo(HaveOccurred())
 	// Wait for the collector to be ready.
 	Eventually(func() int {

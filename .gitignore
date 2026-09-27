@@ -12,6 +12,9 @@ Dockerfile.cross
 # Test binary, build with `go test -c`
 *.test
 
+# Logs of the collector run by the e2e tests
+test/e2e/collector.log
+
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
