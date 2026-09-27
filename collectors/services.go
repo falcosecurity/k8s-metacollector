@@ -110,24 +110,23 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	logger.V(5).Info("resource found")
 
-	// The resource has been created, or updated. Compute if we need to propagate events.
-	// The outcome is saved internally to the resource. See GenerateSubscribers method for more info.
+	var subs fields.Subscribers
 	if !serviceDeleted {
 		// Get all subscribers for the resource based on its node name.
 		// The subscribers are used to compute to which subscribers we need to send an event
 		// and of which type, Create, Delete or Update.
-		subs, err := r.getSubscribers(ctx, logger, svc)
+		subs, err = r.getSubscribers(ctx, logger, svc)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		// With no subscribers left, e.g. when the selector no longer matches the pods on a node, handle the
+		// resource as deleted: the subscribers that received it, if any, get a Delete event.
+		serviceDeleted = len(subs) == 0
+	}
 
-		// If no subscribers/nodes for the current resource just return.
-		if len(subs) == 0 {
-			// Make sure to remove the cache entry for the resource.
-			// This could happen when a subscriber closes its connection.
-			r.cache.Delete(req.String())
-			return ctrl.Result{}, nil
-		}
+	// The resource has been created, or updated. Compute if we need to propagate events.
+	// The outcome is saved internally to the resource. See GenerateSubscribers method for more info.
+	if !serviceDeleted {
 		// Create the resource.
 		sRes = events.NewResource(resource.Service, string(svc.UID))
 		// Populate resource fields.
@@ -233,6 +232,11 @@ func (r *ServiceCollector) ObjFieldsHandler(logger logr.Logger, evt *events.Reso
 
 // getSubscribers returns all the nodes where pods related to the current deployment are running.
 func (r *ServiceCollector) getSubscribers(ctx context.Context, logger logr.Logger, svc *corev1.Service) (fields.Subscribers, error) {
+	// A service without selector does not select any pod. Listing with an empty selector would match them all.
+	if len(svc.Spec.Selector) == 0 {
+		return nil, nil
+	}
+
 	pods := corev1.PodList{}
 	if err := r.List(ctx, &pods, client.InNamespace(svc.Namespace), client.MatchingLabels(svc.Spec.Selector)); err != nil {
 		logger.Error(err, "unable to list pods related to resource", "in namespace", svc.Namespace)

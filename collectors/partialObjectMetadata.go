@@ -130,23 +130,22 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	logger.V(5).Info("resource found")
 
-	// Create the resource and populate all its fields.
+	var subs fields.Subscribers
 	if !deleted {
 		// Get all getSubscribers for the resource based on its node name.
 		// The getSubscribers are used to compute to which getSubscribers we need to send an event
 		// and of which type, Create, Delete or Update
-		subs, err := r.getSubscribers(ctx, logger, &r.resource.ObjectMeta)
+		subs, err = r.getSubscribers(ctx, logger, &r.resource.ObjectMeta)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		// If no subscribers and not in the cache, return.
-		if len(subs) == 0 {
-			// Make sure to remove the cache entry for the resource.
-			// This could happen when a subscriber closes its connection.
-			r.cache.Delete(req.String())
-			return ctrl.Result{}, nil
-		}
+		// With no subscribers left, e.g. when the last related pod leaves a node, handle the resource as deleted:
+		// the subscribers that received it, if any, get a Delete event.
+		deleted = len(subs) == 0
+	}
 
+	// Create the resource and populate all its fields.
+	if !deleted {
 		// Create a new events.Resource and fill its fields.
 		res = events.NewResource(r.resource.Kind, string(r.resource.UID))
 		// Populate resource fields.
