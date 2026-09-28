@@ -2,5 +2,7 @@ approvers:
   - alacuku
   - leogr
   - Issif
+reviewers:
+  - c2ndev
 emeritus_approvers:
   - andreaterzolo
