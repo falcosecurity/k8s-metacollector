@@ -204,7 +204,8 @@ func (opts *options) Run(ctx context.Context) {
 	externalSrc[resource.Deployment] = dpl
 	externalSrc[resource.ReplicaSet] = rs
 	externalSrc[resource.Namespace] = ns
-	externalSrc[resource.Daemonset] = rc
+	externalSrc[resource.Daemonset] = ds
+	externalSrc[resource.ReplicationController] = rc
 
 	// Create source for pods.
 	pd := make(chan event.GenericEvent, 1)
