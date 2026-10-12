@@ -6,7 +6,7 @@ toolchain go1.27.2
 
 require (
 	github.com/falcosecurity/k8s-metacollector v0.1.3
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.84.0
 	sigs.k8s.io/controller-runtime v0.25.1
 )
 
