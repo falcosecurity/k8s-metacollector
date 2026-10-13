@@ -7,6 +7,6 @@ This folder contains a test server that sends a set of predefined JSON events wh
 If you update the `metadata.proto` remember to rebuild the server.
 
 ```bash
-go build .
+go build -o test_server .
 ./test_server --file <path_to_the_json_file>
 ```
