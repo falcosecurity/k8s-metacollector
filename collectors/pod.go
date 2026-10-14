@@ -391,7 +391,8 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(res *events.Resource) {
 			go func(name types.NamespacedName, kind string) {
 				var obj client.Object
 				switch kind {
-				case resource.Deployment, resource.ReplicaSet, resource.Namespace:
+				case resource.Deployment, resource.ReplicaSet, resource.Namespace,
+					resource.Daemonset, resource.ReplicationController:
 					obj = NewPartialObjectMetadata(kind, &name)
 				}
 				if obj != nil {
