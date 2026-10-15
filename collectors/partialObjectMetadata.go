@@ -213,7 +213,7 @@ func (r *ObjectMetaCollector) Reconcile(ctx context.Context, req ctrl.Request) (
 	for _, evt := range evts {
 		if evt != nil {
 			// Push event to the queue
-			r.queue.Push(evt)
+			r.queue.Push(ctx, evt)
 		}
 	}
 

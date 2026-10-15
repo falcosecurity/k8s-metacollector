@@ -75,12 +75,13 @@ func run() error {
 		stream, err := client.Watch(context.Background(), &metadata.Selector{
 			NodeName: *nodeName,
 			ResourceKinds: map[string]string{
-				resource.Daemonset:  "",
-				resource.Namespace:  "",
-				resource.Service:    "",
-				resource.Pod:        "",
-				resource.ReplicaSet: "",
-				resource.Deployment: "",
+				resource.Daemonset:             "",
+				resource.Namespace:             "",
+				resource.Service:               "",
+				resource.Pod:                   "",
+				resource.ReplicaSet:            "",
+				resource.Deployment:            "",
+				resource.ReplicationController: "",
 			},
 		})
 

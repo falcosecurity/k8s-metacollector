@@ -139,9 +139,9 @@ func TestBrokerRoutesEventsToSubscribers(t *testing.T) {
 	}
 	createBefore, updateBefore, deleteBefore := dispatched(events.Create), dispatched(events.Update), dispatched(events.Delete)
 
-	queue.Push(newEvt(events.Create, "only-node-1", uids["node-1"]))
-	queue.Push(newEvt(events.Update, "only-node-2", uids["node-2"]))
-	queue.Push(newEvt(events.Delete, "both", uids["node-1"], uids["node-2"], "unknown-subscriber"))
+	queue.Push(context.Background(), newEvt(events.Create, "only-node-1", uids["node-1"]))
+	queue.Push(context.Background(), newEvt(events.Update, "only-node-2", uids["node-2"]))
+	queue.Push(context.Background(), newEvt(events.Delete, "both", uids["node-1"], uids["node-2"], "unknown-subscriber"))
 
 	require.Equal(t, "only-node-1", recvEvent(t, stream1).GetUid())
 	require.Equal(t, "both", recvEvent(t, stream1).GetUid())

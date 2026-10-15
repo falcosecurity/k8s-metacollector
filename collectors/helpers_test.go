@@ -43,7 +43,7 @@ type recordingQueue struct {
 	evts []events.Interface
 }
 
-func (q *recordingQueue) Push(evt events.Interface) {
+func (q *recordingQueue) Push(_ context.Context, evt events.Interface) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.evts = append(q.evts, evt)
