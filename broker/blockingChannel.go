@@ -35,10 +35,16 @@ func NewBlockingChannel(bufferLen int) *BlockingChannel {
 	}
 }
 
-// Push pushes an event to the queue.
-func (bc *BlockingChannel) Push(evt events.Interface) {
+// Push pushes an event to the queue. It gives up when the context is canceled: at shutdown the broker stops
+// popping from the queue, and a plain send would block the caller forever. The collectors pass their reconcile
+// context, which lasts until shutdown as long as no ReconciliationTimeout is set: otherwise events would be dropped.
+func (bc *BlockingChannel) Push(ctx context.Context, evt events.Interface) {
+	// Recorded before the send: the broker may pop the event, and look up its send time, right after it.
 	bc.metricsHandler.send(evt)
-	bc.channel <- evt
+	select {
+	case bc.channel <- evt:
+	case <-ctx.Done():
+	}
 }
 
 // Pop an event from the queue.

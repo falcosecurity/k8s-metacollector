@@ -41,7 +41,7 @@ func TestBlockingChannelFIFO(t *testing.T) {
 		newEvent(events.Delete, "3"),
 	}
 	for _, evt := range evts {
-		bc.Push(evt)
+		bc.Push(context.Background(), evt)
 	}
 
 	for _, evt := range evts {
@@ -76,7 +76,7 @@ func TestBlockingChannelPopWaitsForPush(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 
-	bc.Push(evt)
+	bc.Push(context.Background(), evt)
 	select {
 	case res := <-got:
 		require.Same(t, evt, res)
@@ -119,7 +119,7 @@ func TestBlockingChannelMetrics(t *testing.T) {
 				before[reason] = added(reason)
 			}
 
-			bc.Push(newEvent(test.reason, "1"))
+			bc.Push(context.Background(), newEvent(test.reason, "1"))
 			for _, reason := range reasons {
 				require.InDelta(t, before[reason]+test.want[reason], added(reason), 0, "reason %s", reason)
 			}

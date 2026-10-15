@@ -23,6 +23,6 @@ import (
 
 // Queue used to dispatch events from the collectors to the broker.
 type Queue interface {
-	Push(evt events.Interface)
+	Push(ctx context.Context, evt events.Interface)
 	Pop(ctx context.Context) events.Interface
 }

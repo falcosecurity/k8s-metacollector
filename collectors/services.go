@@ -184,7 +184,7 @@ func (r *ServiceCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	for _, evt := range evts {
 		if evt != nil {
 			// Add event to the queue.
-			r.queue.Push(evt)
+			r.queue.Push(ctx, evt)
 		}
 	}
 

@@ -220,15 +220,11 @@ func (pc *PodCollector) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if evt == nil {
 			continue
 		}
-		switch evt.Type() {
-		case "Create":
-			// Perform actions for "Create" events.
-			pc.triggerOwnersOnCreateEvent(pRes)
-		case "Delete":
-			pc.triggerOwnersOnDeleteEvent(pRes)
+		if t := evt.Type(); t == "Create" || t == "Delete" {
+			pc.triggerOwners(ctx, pRes)
 		}
 		// Push event to the queue.
-		pc.queue.Push(evt)
+		pc.queue.Push(ctx, evt)
 	}
 
 	return ctrl.Result{}, nil
@@ -379,9 +375,13 @@ func (pc *PodCollector) namespaceRefsHandler(ctx context.Context, logger logr.Lo
 	return nil
 }
 
-func (pc *PodCollector) triggerOwnersOnDeleteEvent(res *events.Resource) {
-	refs := res.GetResourceReferences()
-	for kind, refs := range refs {
+// triggerOwners enqueues a reconcile for each owner of the resource that has a source, so that the owner
+// collectors recompute the nodes they send to when a pod shows up on, or leaves, a node. The sends are bounded by
+// the context: at shutdown the owner collectors stop reading their sources, and a plain send would block forever.
+// This relies on the reconcile context lasting until shutdown: with a ReconciliationTimeout it is canceled when
+// Reconcile returns, and pending triggers would be dropped.
+func (pc *PodCollector) triggerOwners(ctx context.Context, res *events.Resource) {
+	for kind, refs := range res.GetResourceReferences() {
 		ch, ok := pc.ownersSources[kind]
 		if !ok {
 			continue
@@ -389,36 +389,9 @@ func (pc *PodCollector) triggerOwnersOnDeleteEvent(res *events.Resource) {
 
 		for _, ref := range refs {
 			go func(name types.NamespacedName, kind string) {
-				var obj client.Object
-				switch kind {
-				case resource.Deployment, resource.ReplicaSet, resource.Namespace,
-					resource.Daemonset, resource.ReplicationController:
-					obj = NewPartialObjectMetadata(kind, &name)
-				}
-				if obj != nil {
-					ch <- event.GenericEvent{Object: obj}
-				}
-			}(ref.Name, kind)
-		}
-	}
-}
-
-func (pc *PodCollector) triggerOwnersOnCreateEvent(res *events.Resource) {
-	refs := res.GetResourceReferences()
-	for kind, refs := range refs {
-		ch, ok := pc.ownersSources[kind]
-		if !ok {
-			continue
-		}
-
-		for _, ref := range refs {
-			go func(name types.NamespacedName, kind string) {
-				var obj client.Object
-				if kind == resource.Namespace {
-					obj = NewPartialObjectMetadata(kind, &name)
-				}
-				if obj != nil {
-					ch <- event.GenericEvent{Object: obj}
+				select {
+				case ch <- event.GenericEvent{Object: NewPartialObjectMetadata(kind, &name)}:
+				case <-ctx.Done():
 				}
 			}(ref.Name, kind)
 		}

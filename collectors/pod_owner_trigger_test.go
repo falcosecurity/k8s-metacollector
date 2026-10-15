@@ -24,10 +24,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/falcosecurity/k8s-metacollector/pkg/events"
+	"github.com/falcosecurity/k8s-metacollector/pkg/fields"
 	"github.com/falcosecurity/k8s-metacollector/pkg/resource"
 )
 
@@ -40,9 +42,9 @@ var ownerKinds = []string{
 	resource.ReplicationController,
 }
 
-func newOwnerSources() (map[string]chan<- event.GenericEvent, map[string]chan event.GenericEvent) {
-	sources := map[string]chan<- event.GenericEvent{}
-	channels := map[string]chan event.GenericEvent{}
+func newOwnerSources() (sources map[string]chan<- event.GenericEvent, channels map[string]chan event.GenericEvent) {
+	sources = map[string]chan<- event.GenericEvent{}
+	channels = map[string]chan event.GenericEvent{}
 	for _, kind := range ownerKinds {
 		ch := make(chan event.GenericEvent, 4)
 		channels[kind] = ch
@@ -71,14 +73,14 @@ func drainOwnerSources(channels map[string]chan event.GenericEvent) map[string]i
 	return counts
 }
 
-// reconcilePodDeletion reconciles a pod owned by owner, deletes it, then
+// reconcilePodLifecycle reconciles a pod owned by owner, deletes it, then
 // reconciles again, and reports which owner channels were triggered by the
-// deletion.
-func reconcilePodDeletion(t *testing.T, owner metav1.OwnerReference, ownerObj client.Object) map[string]int {
+// creation and by the deletion.
+func reconcilePodLifecycle(t *testing.T, kind string, ownerObj client.Object) (onCreate, onDelete map[string]int) {
 	t.Helper()
 
 	isController := true
-	owner.Controller = &isController
+	owner := metav1.OwnerReference{Kind: kind, Name: ownerObj.GetName(), UID: ownerObj.GetUID(), Controller: &isController}
 
 	pod := newPod("workload-xyz", "node-1")
 	pod.OwnerReferences = []metav1.OwnerReference{owner}
@@ -98,7 +100,7 @@ func reconcilePodDeletion(t *testing.T, owner metav1.OwnerReference, ownerObj cl
 	created := queue.take()
 	require.Len(t, created, 1)
 	require.Equal(t, "Create", created[0].Type())
-	drainOwnerSources(channels)
+	onCreate = drainOwnerSources(channels)
 
 	require.NoError(t, cl.Delete(ctx, pod))
 
@@ -108,10 +110,10 @@ func reconcilePodDeletion(t *testing.T, owner metav1.OwnerReference, ownerObj cl
 	require.Len(t, deleted, 1)
 	require.Equal(t, "Delete", deleted[0].Type())
 
-	return drainOwnerSources(channels)
+	return onCreate, drainOwnerSources(channels)
 }
 
-func TestPodCollectorTriggersOwnersOnDelete(t *testing.T) {
+func TestPodCollectorTriggersOwners(t *testing.T) {
 	tests := []struct {
 		name     string
 		kind     string
@@ -148,16 +150,37 @@ func TestPodCollectorTriggersOwnersOnDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			counts := reconcilePodDeletion(t,
-				metav1.OwnerReference{Kind: tt.kind, Name: "workload", UID: tt.ownerObj.GetUID()},
-				tt.ownerObj)
+			onCreate, onDelete := reconcilePodLifecycle(t, tt.kind, tt.ownerObj)
 
-			require.Positive(t, counts[resource.Namespace], "namespace owner should always be triggered")
-			if tt.triggered {
-				require.Positive(t, counts[tt.kind], "owner kind %q was not triggered", tt.kind)
-			} else {
-				require.Zero(t, counts[tt.kind], "owner kind %q has no owner source", tt.kind)
+			for phase, counts := range map[string]map[string]int{"create": onCreate, "delete": onDelete} {
+				require.Positive(t, counts[resource.Namespace], "namespace owner should always be triggered on %s", phase)
+				if tt.triggered {
+					require.Positive(t, counts[tt.kind], "owner kind %q was not triggered on %s", tt.kind, phase)
+				} else {
+					require.Zero(t, counts[tt.kind], "owner kind %q has no owner source", tt.kind)
+				}
 			}
 		})
+	}
+}
+
+// TestPodCollectorTriggerOwnersStopsOnCanceledContext checks that the trigger goroutines do not outlive the
+// collector: at shutdown the owner collectors stop reading their sources, and the pending sends must give up.
+func TestPodCollectorTriggerOwnersStopsOnCanceledContext(t *testing.T) {
+	// Unbuffered and not read yet: every send blocks, as after the owner collectors stopped.
+	ch := make(chan event.GenericEvent)
+	pc := &PodCollector{ownersSources: map[string]chan<- event.GenericEvent{resource.ReplicaSet: ch}}
+	res := events.NewResource(resource.Pod, "uid-pod")
+	res.AddReferencesForKind(resource.ReplicaSet, []fields.Reference{{Name: types.NamespacedName{Namespace: testNamespace, Name: "workload"}}})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	pc.triggerOwners(ctx, res)
+	cancel()
+	// Leave the goroutine time to see the cancellation, then read: a send still pending would be received.
+	time.Sleep(200 * time.Millisecond)
+	select {
+	case <-ch:
+		t.Fatal("the trigger was sent after the context was canceled")
+	case <-time.After(200 * time.Millisecond):
 	}
 }

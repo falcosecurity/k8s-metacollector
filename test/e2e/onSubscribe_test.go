@@ -140,6 +140,19 @@ var _ = Describe("Clients on subscribe", func() {
 				}
 
 				// No events for resources unrelated to the node.
+				// The initial sync sends each resource once, even if both its own collector and its pods trigger it.
+				Consistently(func() map[string]int {
+					creates := map[string]int{}
+					for _, obj := range objs {
+						for _, evt := range client.History(string(obj.meta.UID)) {
+							if evt.GetReason() == events.Create {
+								creates[obj.meta.Namespace+"/"+obj.meta.Name]++
+							}
+						}
+					}
+					return creates
+				}, 3*time.Second, time.Second).WithContext(ctx).Should(HaveEach(1), "duplicate events for %s", kind)
+
 				expected := make(map[string]struct{}, len(objs))
 				for _, obj := range objs {
 					expected[string(obj.meta.UID)] = struct{}{}

@@ -132,7 +132,7 @@ func dispatch(ctx context.Context, logger logr.Logger, resourceKind string, subC
 							}
 							owner = events.ManagingOwner(replicaSet.OwnerReferences)
 							if owner != nil && owner.Kind == resource.Deployment {
-								if !send(&appsv1.ReplicaSet{
+								if !send(&appsv1.Deployment{
 									Name:      owner.Name,
 									Namespace: podList.Items[podIndex].Namespace,
 								}) {
