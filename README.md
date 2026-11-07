@@ -2,11 +2,9 @@
 
 [![Falco Ecosystem Repository](https://github.com/falcosecurity/evolution/blob/main/repos/badges/falco-ecosystem-blue.svg)](https://github.com/falcosecurity/evolution/blob/main/REPOSITORIES.md#ecosystem-scope) [![Incubating](https://img.shields.io/badge/status-incubating-orange?style=for-the-badge)](https://github.com/falcosecurity/evolution/blob/main/REPOSITORIES.md#incubating)
 
-⚠️ The repository is still a work in progress ⚠️
-
 The `k8s-metacollector` is a self-contained module that can be deployed within a Kubernetes cluster to perform the task
 of gathering metadata from various Kubernetes resources and subsequently transmitting this collected metadata to
-designated subscribers.
+designated subscribers. It is production-ready and used in production to provide Kubernetes metadata enrichment to Falco.
 
 ## Description
 
@@ -17,8 +15,8 @@ Kubernetes resources](https://falco.org/docs/reference/rules/supported-fields/#f
 well in small Kubernetes cluster but does not scale in large environments. The following issue describes the 
 problems that were affecting the old Kubernetes client: https://github.com/falcosecurity/libs/issues/987.
 
-The aim of `k8s-metacollector` is to propose a novel approach to `k8s metadata enrichment` in Falco by moving 
-the fetching logic of the metadata to a centralized component. The Falco instances would connect to this component 
+`k8s-metacollector` provides a scalable approach to `k8s metadata enrichment` in Falco by moving 
+the fetching logic of the metadata to a centralized component. The Falco instances connect to this component 
 and receive the metadata without the need to connect to the Kubernetes API server.
 The following image shows the  deployment of `k8s-metacollector` and Falco in a kubernetes cluster.
 
@@ -44,7 +42,6 @@ The `k8s-metacollector` assures that:
 * subscribers (Falco instances) at subscribe time will receive all the metadata for the resources related to the 
   subscriber(node for which the subscriber wants to receive the metadata);
 * a message of type `Create` is sent to the subscribers when a new resource is discovered;
-  for it;
 * a message of type `Update` is sent to the subscriber when an already sent resource has some fields modified;
 * a message of type `Delete` is sent to the subscriber when an already sent resource is not anymore relevant for the 
   subscriber;
